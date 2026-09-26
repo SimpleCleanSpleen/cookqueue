@@ -93,6 +93,20 @@ Then:
 Photos are shrunk in the browser and stored inside the recipe, because
 Firebase's file storage needs the paid plan.
 
+## Optional: auto-expiring the Recipe Helper debug log
+
+"Add a recipe" has a "Recipe Helper" that can log a failed JSON paste to a
+`failed_recipe_imports` collection so Claude can debug tricky cases (see
+CLAUDE.md). Nobody can read it from the site — only you, in the Firebase
+console. It's small and capped, but if you'd rather it not grow forever:
+
+1. Firestore Database → the **TTL** tab (may be under "Time-to-live" or a
+   settings icon).
+2. **Create policy** → collection group `failed_recipe_imports` → timestamp
+   field `createdAt`.
+3. Firestore deletes entries a while after their `createdAt` on its own,
+   for free. This is optional; skip it if you don't see the tab.
+
 ## Optional: letting Claude publish rules itself
 
 Pasting the rules takes a minute and only happens when they change, so this

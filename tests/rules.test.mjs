@@ -51,6 +51,20 @@ await t('bad barcode id rejected', assertFails(A.doc('products/abc123').set(prod
 await t('bad unit rejected', assertFails(A.doc('products/12345670').set(product('alice', { unit: 'lbs' }))));
 await t('extra fields rejected', assertFails(A.doc('products/12345670').set(product('alice', { price: 3 }))));
 await t('cannot spoof createdBy', assertFails(A.doc('products/12345670').set(product('bob'))));
+
+const failedImport = (owner, extra = {}) => ({ ownerUid: owner, createdAt: ts(), rawInput: '{bad json', errors: ['Unexpected token b'], context: 'single', ...extra });
+await t('anon cannot log a failed import', assertFails(anon.collection('failed_recipe_imports').add(failedImport('x'))));
+await t('signed-in-no-username cannot log a failed import', assertFails(env.authenticatedContext('carol').firestore().collection('failed_recipe_imports').add(failedImport('carol'))));
+await t('alice logs a failed import', assertSucceeds(A.collection('failed_recipe_imports').add(failedImport('alice'))));
+await t('alice cannot spoof ownerUid on a failed import', assertFails(A.collection('failed_recipe_imports').add(failedImport('bob'))));
+await t('oversized rawInput rejected', assertFails(A.collection('failed_recipe_imports').add(failedImport('alice', { rawInput: 'x'.repeat(20001) }))));
+await t('too many errors rejected', assertFails(A.collection('failed_recipe_imports').add(failedImport('alice', { errors: Array(21).fill('x') }))));
+await t('extra field rejected on failed import', assertFails(A.collection('failed_recipe_imports').add(failedImport('alice', { extra: 'nope' }))));
+const failedImportDoc = await A.collection('failed_recipe_imports').add(failedImport('alice'));
+await t('nobody can read a failed import', assertFails(A.doc(`failed_recipe_imports/${failedImportDoc.id}`).get()));
+await t('nobody can update a failed import', assertFails(A.doc(`failed_recipe_imports/${failedImportDoc.id}`).update({ context: 'batch' })));
+await t('nobody can delete a failed import', assertFails(A.doc(`failed_recipe_imports/${failedImportDoc.id}`).delete()));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 await env.cleanup();
 process.exit(fail ? 1 : 0);

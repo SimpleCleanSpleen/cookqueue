@@ -10,6 +10,10 @@ rules_version = '2';
 //  - Usernames are unique (case-insensitive) and only you can set yours.
 //  - Only whoever added a barcode can correct it; nobody deletes one.
 //  - Ratings can't be written until reviews ship.
+//  - failed_recipe_imports is a write-only debug log (Recipe Helper): signed-in
+//    users can create a capped, size-limited entry stamped as their own;
+//    nobody can read, edit or delete it from the app. Give it a Firestore TTL
+//    policy on `createdAt` in the console so old entries expire on their own.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -104,6 +108,18 @@ service cloud.firestore {
       allow create: if signedIn() && hasUsername() && validProduct();
       allow update: if signedIn() && resource.data.createdBy == request.auth.uid && validProduct();
       allow delete: if false;
+    }
+
+    match /failed_recipe_imports/{entryId} {
+      allow read, update, delete: if false;
+
+      allow create: if signedIn() && hasUsername()
+        && request.resource.data.keys().hasOnly(['ownerUid', 'createdAt', 'rawInput', 'errors', 'context'])
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.rawInput is string && request.resource.data.rawInput.size() <= 20000
+        && request.resource.data.errors is list && request.resource.data.errors.size() <= 20
+        && request.resource.data.context is string && request.resource.data.context.size() <= 40;
     }
   }
 }

@@ -96,5 +96,17 @@ CookQueue.util = (function () {
     if (next) img.src = next; else img.onerror = null;
   }
 
-  return { esc, fmtQty, fmtAmount, fmtMinutes, fmtClock, fmtNum, clone, delay, titleCase, placeholderImage, imgAttrs, nextImage };
+  /**
+   * Copies text to the clipboard. Resolves false (never rejects) if the
+   * Clipboard API is unavailable or blocked, so callers can show a manual
+   * fallback instead.
+   */
+  async function copyText(text) {
+    try {
+      if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); return true; }
+    } catch { /* fall through to false */ }
+    return false;
+  }
+
+  return { esc, fmtQty, fmtAmount, fmtMinutes, fmtClock, fmtNum, clone, delay, titleCase, placeholderImage, imgAttrs, nextImage, copyText };
 })();

@@ -12,6 +12,10 @@
  *                        { ownerUid, createdAt, updatedAt }
  *   products/{gtin}      shared barcode catalog: { name, brand, size, unit,
  *                        label, group, source, createdBy, updatedAt }
+ *   failed_recipe_imports/{auto}  write-only debug log for Recipe Helper
+ *                        (js/ui/recipe-helper.js): { ownerUid, createdAt,
+ *                        rawInput, errors, context }. Nobody reads it from
+ *                        the app; Jeremy checks it in the Firebase console.
  */
 window.CookQueue = window.CookQueue || {};
 
@@ -239,9 +243,32 @@ CookQueue.Cloud = (function () {
 
   const isMine = recipe => !!(session.user && recipe?.community?.ownerUid === session.user.uid);
 
+  const MAX_LOGGED_INPUT_CHARS = 20000;
+
+  /**
+   * Write-only debug log for Recipe Helper: a JSON parse or rule-check
+   * failure the person hit while importing AI-generated recipe JSON. Capped
+   * and gated by firestore.rules; only readable from the Firebase console.
+   * Never blocks the UI — a logging failure is swallowed.
+   */
+  async function logFailedImport({ rawInput, errors, context }) {
+    if (!session.user) return; // Recipe Helper is only shown to signed-in users anyway
+    try {
+      await db.collection('failed_recipe_imports').add({
+        ownerUid: session.user.uid,
+        createdAt: fb.firestore.FieldValue.serverTimestamp(),
+        rawInput: String(rawInput ?? '').slice(0, MAX_LOGGED_INPUT_CHARS),
+        errors: (Array.isArray(errors) ? errors : [String(errors)]).slice(0, 20).map(e => String(e).slice(0, 300)),
+        context: String(context || 'unknown').slice(0, 40),
+      });
+    } catch (err) {
+      console.warn('[CookQueue] Could not log failed import:', err);
+    }
+  }
+
   return {
     enabled, emulator, ready, session, onChange, signIn, signOut,
     checkUsername, setUsername, listRecipes, createRecipe, updateRecipe, deleteRecipe, isMine,
-    getProduct, saveProduct,
+    getProduct, saveProduct, logFailedImport,
   };
 })();
