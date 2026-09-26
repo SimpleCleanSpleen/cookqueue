@@ -34,5 +34,5 @@ Work on a branch and open a PR. The owner lets Claude merge, with these conditio
 
 ## Goals
 - **Now:** the owner is setting up Firebase (`docs/firebase-setup.md`) and will paste the web config (not a secret). Grow the menu with batches of 25 from Gemini.
-- **Next:** real ratings and reviews for signed-in users.
+- **Next:** ratings, reviews and comments. Guests can browse everything, but writing anything (recipes, reviews, comments, ratings) needs sign-in plus a username, enforced in `firestore.rules`, not only the UI.
 - **Later / undecided:** a guest "request a meal" QR code; Instacart shopping links (researched only: free dev key, ~30–40 day review, needs a free Cloudflare Worker); a Python script that uses the Gemini Batch API for images (~$0.45 per 25, so ask first; the owner currently makes images free in the Gemini app).
