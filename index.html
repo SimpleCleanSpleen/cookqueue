@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PrepDash: Meal Prep, Delivered to Your Kitchen</title>
+  <meta name="description" content="Browse and generate easy, zero-waste, high-protein meal prep recipes with parallel cooking timelines.">
+  <meta name="theme-color" content="#FF4F1F">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍱</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#app">Skip to content</a>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="logo" href="#/" aria-label="PrepDash home">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" width="28" height="28"><rect x="3" y="9" width="26" height="17" rx="5" fill="currentColor"/><rect x="6" y="5" width="20" height="5" rx="2.5" fill="currentColor" opacity=".55"/><path d="M10 17.5h12" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg>
+        </span>
+        <span class="logo-word">Prep<b>Dash</b></span>
+      </a>
+
+      <button class="location-pill" type="button" title="Prep window">
+        <span aria-hidden="true">📅</span><span>Prep for <b>this week</b></span>
+      </button>
+
+      <label class="search">
+        <span class="sr-only">Search recipes</span>
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="m20 20-4-4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+        <input id="search" type="search" placeholder="Search recipes, cuisines, ingredients" autocomplete="off">
+      </label>
+
+      <button class="plan-btn" type="button" data-action="plan-open" aria-label="Open prep plan">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.5L21 8H6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="20" r="1.4" fill="currentColor"/><circle cx="17" cy="20" r="1.4" fill="currentColor"/></svg>
+        <span class="plan-btn-label">Prep Plan</span>
+        <span class="plan-count" id="plan-count" hidden>0</span>
+      </button>
+    </div>
+  </header>
+
+  <main id="app" class="container" tabindex="-1"></main>
+
+  <footer class="footer container">
+    <span>🍱 PrepDash</span>
+    <span class="muted">Low salt · low fat · high protein · zero waste. Images are placeholders.</span>
+  </footer>
+
+  <!-- Prep Plan drawer (cart) -->
+  <div class="drawer-backdrop" data-action="plan-close"></div>
+  <aside id="plan-drawer" class="drawer" aria-hidden="true" aria-labelledby="plan-title">
+    <div class="drawer-head">
+      <h2 id="plan-title">Your Prep Plan</h2>
+      <button class="icon-btn" data-action="plan-close" aria-label="Close prep plan">✕</button>
+    </div>
+    <div class="drawer-body" id="plan-body"></div>
+  </aside>
+
+  <div id="modal-root"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- Load order matters: config → data → libs → service → UI → app -->
+  <script src="js/config.js"></script>
+  <script src="js/data/mock-recipes.js"></script>
+  <!-- Add Gemini batches here (copy js/data/batch-template.js), e.g.: -->
+  <!-- <script src="js/data/batch-01.js"></script> -->
+  <script src="js/lib/utils.js"></script>
+  <script src="js/lib/nutrition.js"></script>
+  <script src="js/lib/scaler.js"></script>
+  <script src="js/lib/scheduler.js"></script>
+  <script src="js/services/recipe-service.js"></script>
+  <script src="js/ui/components.js"></script>
+  <script src="js/ui/timeline.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

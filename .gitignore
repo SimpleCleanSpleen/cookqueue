@@ -1,0 +1,13 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+*.swp
+
+# Local scratch
+*.log
+tmp/
+
+# Firebase (later)
+.firebase/
+firebase-debug.log
