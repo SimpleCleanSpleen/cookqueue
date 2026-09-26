@@ -1,14 +1,14 @@
 /**
- * PrepDash — nutrition helpers: calorie color scale + macro math.
+ * CookQueue — nutrition helpers: calorie color scale + macro math.
  *
  * Each recipe category (main / dessert / snack) has its own calorie scale,
  * so a 350 kcal dessert and an 880 kcal main are colored relative to what's
  * normal for that kind of dish.
  */
-window.PrepDash = window.PrepDash || {};
+window.CookQueue = window.CookQueue || {};
 
-PrepDash.nutrition = (function () {
-  const { CALORIE_STOPS, RULES } = PrepDash.config;
+CookQueue.nutrition = (function () {
+  const { CALORIE_STOPS, RULES } = CookQueue.config;
 
   const lerp = (a, b, t) => a + (b - a) * t;
 

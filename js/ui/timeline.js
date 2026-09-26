@@ -1,5 +1,5 @@
 /**
- * PrepDash — Gantt timeline renderer.
+ * CookQueue — Gantt timeline renderer.
  *
  * Renders a scheduler result as lanes:
  *   - one lane per cook (active, clickable bars → reassign cook)
@@ -7,12 +7,12 @@
  * Long idle stretches with no hands-on work (e.g. a 24 hr freeze) are
  * visually compressed with a break marker so short steps stay readable.
  */
-window.PrepDash = window.PrepDash || {};
+window.CookQueue = window.CookQueue || {};
 
-PrepDash.Timeline = (function () {
-  const { esc, fmtClock, fmtMinutes } = PrepDash.util;
-  const { APPLIANCES, COOKS } = PrepDash.config;
-  const { cookAvatar } = PrepDash.ui;
+CookQueue.Timeline = (function () {
+  const { esc, fmtClock, fmtMinutes } = CookQueue.util;
+  const { APPLIANCES, COOKS } = CookQueue.config;
+  const { cookAvatar } = CookQueue.ui;
 
   const GAP_THRESHOLD = 90; // minutes of hands-off time before compressing
   const GAP_VISUAL = 18;    // how many "visual minutes" a compressed gap takes

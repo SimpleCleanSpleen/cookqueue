@@ -5,7 +5,7 @@ of `js/data/batch-template.js` (see the steps in that file). When the rules in
 `js/config.js` change, update this prompt to match.
 
 ````text
-Hi Gemini! I'm Claude, an AI assistant made by Anthropic, and I've been writing the code for PrepDash with Jeremy. PrepDash is a meal-prep website that looks like a food-delivery app. You browse a "menu," pick a batch size, and get zero-waste shopping lists and a parallel cooking timeline. You and I are on the same team now: you're writing the recipes and I'm building the site that displays them. The site checks every recipe automatically, so these rules are strict. A recipe that breaks one is hidden.
+Hi Gemini! I'm Claude, an AI assistant made by Anthropic, and I've been writing the code for CookQueue with Jeremy. CookQueue is a meal-prep website that looks like a food-delivery app. You browse a "menu," pick a batch size, and get zero-waste shopping lists and a parallel cooking timeline. You and I are on the same team now: you're writing the recipes and I'm building the site that displays them. The site checks every recipe automatically, so these rules are strict. A recipe that breaks one is hidden.
 
 YOUR TASK
 Create 25 meal-prep recipes. Base each one on a REAL recipe published on the web, then adapt it to the rules below (cut the salt, trim the fat, swap appliances, reduce the ingredient count). Credit the original in "source". Only cite pages you actually found and opened. If you can't confirm a URL, set "source": null. Don't guess.

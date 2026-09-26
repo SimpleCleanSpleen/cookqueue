@@ -1,15 +1,15 @@
 /**
- * PrepDash — product lookup by barcode.
+ * CookQueue — product lookup by barcode.
  *
- * lookup() checks PrepDash's own shared catalog (Firestore products/{gtin})
+ * lookup() checks CookQueue's own shared catalog (Firestore products/{gtin})
  * first, then Open Food Facts (free, open data, no key). contribute() adds
  * the barcoded ingredients of a saved recipe to the shared catalog, so the
  * next person who scans the same product gets the same name and size, even
  * when Open Food Facts has never heard of it.
  */
-window.PrepDash = window.PrepDash || {};
+window.CookQueue = window.CookQueue || {};
 
-PrepDash.ProductService = (function () {
+CookQueue.ProductService = (function () {
   const OFF = 'https://world.openfoodfacts.org/api/v2/product/';
   const OFF_FIELDS = 'product_name,product_name_en,generic_name,brands,quantity,product_quantity,product_quantity_unit,categories_tags';
   const G_PER_OZ = 28.3495, ML_PER_FLOZ = 29.5735;
@@ -31,7 +31,7 @@ PrepDash.ProductService = (function () {
     return 'Pantry';
   }
 
-  /** Open Food Facts product → PrepDash product, or null if it lacks a name or size. */
+  /** Open Food Facts product → CookQueue product, or null if it lacks a name or size. */
   function fromOFF(p) {
     const name = (p.product_name_en || p.product_name || p.generic_name || '').trim();
     const qty = +p.product_quantity;
@@ -60,13 +60,13 @@ PrepDash.ProductService = (function () {
 
   /**
    * Finds a product by normalized barcode.
-   * Resolves to { product, from: 'prepdash' | 'openfoodfacts' } or { product: null }.
+   * Resolves to { product, from: 'cookqueue' | 'openfoodfacts' } or { product: null }.
    */
   async function lookup(gtin) {
-    const Cloud = PrepDash.Cloud;
+    const Cloud = CookQueue.Cloud;
     if (Cloud?.enabled) {
       const mine = await Cloud.getProduct(gtin).catch(() => null);
-      if (mine) return { product: mine, from: 'prepdash' };
+      if (mine) return { product: mine, from: 'cookqueue' };
     }
     try {
       const off = await fromOpenFoodFacts(gtin);
@@ -77,7 +77,7 @@ PrepDash.ProductService = (function () {
         return { product: off, from: 'openfoodfacts' };
       }
     } catch (err) {
-      console.warn('[PrepDash] Open Food Facts lookup failed:', err);
+      console.warn('[CookQueue] Open Food Facts lookup failed:', err);
       return { product: null, offline: true };
     }
     return { product: null };
@@ -88,13 +88,13 @@ PrepDash.ProductService = (function () {
    * Best effort: a failure here never blocks saving the recipe.
    */
   async function contribute(recipe) {
-    const Cloud = PrepDash.Cloud;
+    const Cloud = CookQueue.Cloud;
     if (!Cloud?.enabled || !Cloud.session.user) return;
     const items = recipe.ingredients.filter(i => i.barcode && i.package && i.package.size > 0);
     await Promise.all(items.map(i => Cloud.saveProduct(i.barcode, {
       name: i.name, size: i.package.size, unit: i.package.unit,
       label: i.package.label, group: i.group, source: 'user',
-    }).catch(err => console.warn(`[PrepDash] Could not share barcode ${i.barcode}:`, err))));
+    }).catch(err => console.warn(`[CookQueue] Could not share barcode ${i.barcode}:`, err))));
   }
 
   return { lookup, contribute, fromOFF };

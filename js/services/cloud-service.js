@@ -1,5 +1,5 @@
 /**
- * PrepDash — Cloud service (Firebase Auth + Firestore).
+ * CookQueue — Cloud service (Firebase Auth + Firestore).
  *
  * Only this file talks to Firebase. It stays dormant (enabled = false) until
  * js/firebase-config.js has a config, so the site keeps working from file://
@@ -13,14 +13,14 @@
  *   products/{gtin}      shared barcode catalog: { name, brand, size, unit,
  *                        label, group, source, createdBy, updatedAt }
  */
-window.PrepDash = window.PrepDash || {};
+window.CookQueue = window.CookQueue || {};
 
-PrepDash.Cloud = (function () {
-  const settings = PrepDash.FIREBASE || {};
+CookQueue.Cloud = (function () {
+  const settings = CookQueue.FIREBASE || {};
   const local = ['localhost', '127.0.0.1'].includes(location.hostname);
   const emulator = local && new URLSearchParams(location.search).has('emulator');
   const config = emulator
-    ? { apiKey: 'demo-key', authDomain: 'localhost', projectId: 'demo-prepdash', appId: 'demo' }
+    ? { apiKey: 'demo-key', authDomain: 'localhost', projectId: 'demo-cookqueue', appId: 'demo' }
     : settings.config;
   const enabled = !!config && /^https?:$/.test(location.protocol);
 
@@ -69,7 +69,7 @@ PrepDash.Cloud = (function () {
       });
       return true;
     } catch (err) {
-      console.warn('[PrepDash] Firebase unavailable, showing batch recipes only:', err);
+      console.warn('[CookQueue] Firebase unavailable, showing batch recipes only:', err);
       session.ready = true;
       emit();
       return false;

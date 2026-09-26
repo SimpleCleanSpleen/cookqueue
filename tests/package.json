@@ -1,10 +1,10 @@
 {
-  "name": "prepdash-tests",
+  "name": "cookqueue-tests",
   "private": true,
   "description": "Dev-only tests for the Firebase features. The site itself has no build step and needs none of this.",
   "type": "module",
   "scripts": {
-    "emulators": "firebase emulators:start --project demo-prepdash --config ../firebase.json",
+    "emulators": "firebase emulators:start --project demo-cookqueue --config ../firebase.json",
     "test:rules": "node rules.test.mjs",
     "test:e2e": "sh reset-emulators.sh && node e2e.mjs && sh reset-emulators.sh && node tampered-recipe.mjs && sh reset-emulators.sh && node barcode.e2e.mjs"
   },

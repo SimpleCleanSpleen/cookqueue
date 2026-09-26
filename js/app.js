@@ -1,10 +1,10 @@
 /**
- * PrepDash — application controller.
+ * CookQueue — application controller.
  * Hash router (#/, #/recipe/:id, #/add, #/edit/:id, #/mine), state,
  * rendering and event delegation.
  */
 (function () {
-  const P = window.PrepDash;
+  const P = window.CookQueue;
   const { esc, fmtMinutes, fmtNum, fmtQty, fmtAmount, titleCase, imgAttrs } = P.util;
   const { calorieColor, rangeFor } = P.nutrition;
   const { CATEGORIES, APPLIANCES, COOKS, RULES, STORAGE_KEY, MACRO_COLORS } = P.config;
@@ -138,7 +138,7 @@
   }
 
   function renderHome() {
-    document.title = 'PrepDash: Meal Prep, Delivered to Your Kitchen';
+    document.title = 'CookQueue: Meal Prep, Delivered to Your Kitchen';
     const f = state.filters;
     const list = state.loading ? [] : filteredRecipes();
     $app.innerHTML = `
@@ -186,7 +186,7 @@
 
       ${Service.rejected.length ? `
       <div class="notice" role="status">
-        ⚠ ${Service.rejected.length} recipe${Service.rejected.length > 1 ? 's are' : ' is'} hidden because ${Service.rejected.length > 1 ? 'they break' : 'it breaks'} PrepDash rules:
+        ⚠ ${Service.rejected.length} recipe${Service.rejected.length > 1 ? 's are' : ' is'} hidden because ${Service.rejected.length > 1 ? 'they break' : 'it breaks'} CookQueue rules:
         ${Service.rejected.slice(0, 5).map(x => `<b>${esc(x.name || x.id)}</b> (${esc(x.errors[0])})`).join('; ')}${Service.rejected.length > 5 ? '…' : ''}.
         Open the browser console (F12) for the full list.
       </div>` : ''}
@@ -202,7 +202,7 @@
             <div class="empty">
               <span aria-hidden="true">🥡</span>
               <h3>Nothing on the menu matches that</h3>
-              <p>Clear a filter, or have PrepDash generate something new.</p>
+              <p>Clear a filter, or have CookQueue generate something new.</p>
               <button class="btn btn-primary" data-action="clear-filters">Clear filters</button>
             </div>`}
         </div>
@@ -213,7 +213,7 @@
 
   function renderRecipe(r) {
     state.current = r;
-    document.title = `${r.name} · PrepDash`;
+    document.title = `${r.name} · CookQueue`;
     const v = viewState(r);
     const validation = Service.validate(r);
 
@@ -244,10 +244,10 @@
           <p class="tagline">${esc(r.tagline)}</p>
           <div class="tag-row">${ui.spiceMeter(r.spiceLevel)}${ui.tagChips(r.tags)}</div>
           <p class="description">${esc(r.description)}</p>
-          ${r.source ? `<p class="source">Adapted from <a href="${esc(r.source.url)}" target="_blank" rel="noopener">${esc(r.source.name)}</a>${r.source.author ? ` by ${esc(r.source.author)}` : ''}, reworked to fit PrepDash rules.</p>` : ''}
+          ${r.source ? `<p class="source">Adapted from <a href="${esc(r.source.url)}" target="_blank" rel="noopener">${esc(r.source.name)}</a>${r.source.author ? ` by ${esc(r.source.author)}` : ''}, reworked to fit CookQueue rules.</p>` : ''}
           <div class="appliance-row"><span class="muted">Uses:</span>${ui.applianceChips(r.appliances)}</div>
           <details class="rules ${validation.ok ? 'is-ok' : 'is-bad'}">
-            <summary>${validation.ok ? '✓ Meets all PrepDash rules' : '⚠ Rule check failed'}</summary>
+            <summary>${validation.ok ? '✓ Meets all CookQueue rules' : '⚠ Rule check failed'}</summary>
             <ul>${validation.checks.map(c => `<li class="${c.ok ? 'ok' : 'bad'}">${c.ok ? '✓' : '✗'} ${esc(c.label)}</li>`).join('')}
               <li class="ok">✓ ${fmtNum(r.nutritionPerServing.fiber)}g fiber · ${isHighProtein(r.nutritionPerServing) ? 'high protein' : 'moderate protein'}</li>
             </ul>
@@ -479,7 +479,7 @@
 
   function renderEditor(id) {
     const isEdit = !!id;
-    document.title = `${isEdit ? 'Edit recipe' : 'Add a recipe'} · PrepDash`;
+    document.title = `${isEdit ? 'Edit recipe' : 'Add a recipe'} · CookQueue`;
     window.scrollTo(0, 0);
     if (!signedIn()) {
       $app.innerHTML = signInCard('Sign in to share a recipe', 'Recipes you add show your username, and only you can edit or delete them.');
@@ -500,7 +500,7 @@
         <a class="back-link" href="${isEdit ? `#/recipe/${esc(id)}` : '#/mine'}">← ${isEdit ? 'Back to recipe' : 'My recipes'}</a>
         <header class="editor-head">
           <h1>${isEdit ? `Edit “${esc(recipe.name)}”` : 'Add a recipe'}</h1>
-          <p class="muted">Posting as <b>@${esc(username() || '…')}</b>. Every recipe has to pass the PrepDash rules before it can be published:
+          <p class="muted">Posting as <b>@${esc(username() || '…')}</b>. Every recipe has to pass the CookQueue rules before it can be published:
             ≤ ${RULES.maxSodiumMg} mg sodium, ≤ ${RULES.maxFatPctOfCalories}% of calories from fat, ≤ ${RULES.maxIngredients} ingredients,
             ≤ ${RULES.maxActiveMinutes} min hands-on and approved appliances only.</p>
         </header>
@@ -536,7 +536,7 @@
   }
 
   function renderMine() {
-    document.title = 'My recipes · PrepDash';
+    document.title = 'My recipes · CookQueue';
     if (!signedIn()) {
       $app.innerHTML = signInCard('Sign in to see your recipes', 'Add, edit and delete the recipes you share.');
       return;

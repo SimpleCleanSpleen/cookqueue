@@ -1,16 +1,16 @@
 /**
- * PrepDash — recipe editor (the "Add recipe" / "Edit recipe" page).
+ * CookQueue — recipe editor (the "Add recipe" / "Edit recipe" page).
  *
  * The form edits a recipe object in the README schema directly. Inputs carry
  * data-path ("ingredients.2.name") and data-kind (how to parse the value).
  * Every change re-runs RecipeService.validate(), so Save only lights up once
- * the recipe meets every PrepDash rule.
+ * the recipe meets every CookQueue rule.
  */
-window.PrepDash = window.PrepDash || {};
+window.CookQueue = window.CookQueue || {};
 
-PrepDash.RecipeEditor = (function () {
-  const { esc, fmtNum, titleCase } = PrepDash.util;
-  const { RULES, APPLIANCES } = PrepDash.config;
+CookQueue.RecipeEditor = (function () {
+  const { esc, fmtNum, titleCase } = CookQueue.util;
+  const { RULES, APPLIANCES } = CookQueue.config;
 
   const UNITS = ['oz', 'fl oz', 'cup', 'tbsp', 'tsp', 'can', 'box', 'bunch', 'each', 'scoop'];
   const COUNT_UNITS = ['can', 'box', 'bunch', 'each', 'scoop'];
@@ -97,7 +97,7 @@ PrepDash.RecipeEditor = (function () {
     if (!r.tags.includes(r.cuisine) && r.cuisine !== 'other') r.tags.unshift(r.cuisine);
     r.tags = [...new Set(r.tags)];
     r.notes = r.notes.filter(n => n.trim());
-    if (!r.image.url) r.image.url = PrepDash.util.placeholderImage(r.name || 'New recipe');
+    if (!r.image.url) r.image.url = CookQueue.util.placeholderImage(r.name || 'New recipe');
     r.image.alt = `${r.name} served on a white paper plate`;
     if (r.source && !r.source.name && !r.source.url) r.source = null;
     if (r.source && !r.source.author) delete r.source.author;
@@ -271,7 +271,7 @@ PrepDash.RecipeEditor = (function () {
   function stepsHTML(m) {
     return `
       <h2>Steps</h2>
-      <p class="muted small">Times are for the servings above. Mark what must finish first, and PrepDash builds the parallel timeline. Hands-on time must stay under ${RULES.maxActiveMinutes} minutes.</p>
+      <p class="muted small">Times are for the servings above. Mark what must finish first, and CookQueue builds the parallel timeline. Hands-on time must stay under ${RULES.maxActiveMinutes} minutes.</p>
       <ol class="ed-list">${m.steps.map((s, k) => stepHTML(s, k, m)).join('')}</ol>
       <button type="button" class="btn btn-ghost btn-small" data-ed="step-add">+ Add step</button>`;
   }
@@ -302,7 +302,7 @@ PrepDash.RecipeEditor = (function () {
 
   function checksHTML(m, { canSave, saving, isEdit }) {
     let result;
-    try { result = PrepDash.RecipeService.validate(toRecipe(m)); } catch (err) {
+    try { result = CookQueue.RecipeService.validate(toRecipe(m)); } catch (err) {
       result = { ok: false, checks: [], errors: [`Incomplete recipe: ${err.message}`] };
     }
     const failedChecks = new Set(result.checks.filter(c => !c.ok).map(c => c.label));
@@ -463,7 +463,7 @@ PrepDash.RecipeEditor = (function () {
         case 'ing-add': m.ingredients.push(blankIngredient()); rerender('ingredients'); break;
         case 'ing-remove': m.ingredients.splice(k, 1); rerender('ingredients'); break;
         case 'barcode':
-          PrepDash.BarcodePicker.open({
+          CookQueue.BarcodePicker.open({
             current: m.ingredients[k].barcode || '',
             onPick: pick => {
               const note = applyBarcode(m.ingredients[k], pick);

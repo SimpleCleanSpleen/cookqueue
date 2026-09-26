@@ -1,11 +1,11 @@
-# PrepDash (Meal Prep Generator)
+# CookQueue (Meal Prep Generator)
 
-**▶ Live site: https://simplecleanspleen.github.io/prepdash/**
+**▶ Live site: https://simplecleanspleen.github.io/prepdash/** *(renaming to `.../cookqueue/` once the GitHub repo is renamed — see `CLAUDE.md`)*
 
 ## Core Concept
 A delivery-app-style UI for generating optimized, zero-waste meal prep recipes tailored to strict dietary needs.
 
-You browse a "menu," open a recipe the way you'd open a restaurant page, pick your batch size in an order-style panel, and add it to your **Prep Plan** (the cart). PrepDash then gives you a combined shopping list for the week.
+You browse a "menu," open a recipe the way you'd open a restaurant page, pick your batch size in an order-style panel, and add it to your **Prep Plan** (the cart). CookQueue then gives you a combined shopping list for the week.
 
 ## Unique Features
 - **Optimal Batch Scaler:** Eliminates ingredient waste by calculating perfect serving multiples.
@@ -28,12 +28,12 @@ Once Firebase is switched on (see [docs/firebase-setup.md](docs/firebase-setup.m
 - **My recipes** (account menu, top right) lists everything you've shared, including any that are hidden because they break a rule.
 - A **Community** category on the home page. Community recipes show "New" until real ratings arrive.
 
-- **Barcodes:** each ingredient can have a UPC/EAN. Scan it with the phone camera, pick a photo of it, or type the digits. PrepDash checks its own shared catalog (Firestore `products`), then [Open Food Facts](https://world.openfoodfacts.org) (free, open data), and fills in the product name, aisle and package size in oz / fl oz. Barcodes nobody has seen before are saved to the catalog when you publish, so the next person who scans them gets the same name and size. Browsers without a built-in barcode reader (iPhone Safari, Firefox) load a free open-source one (zxing-wasm) the first time someone scans.
+- **Barcodes:** each ingredient can have a UPC/EAN. Scan it with the phone camera, pick a photo of it, or type the digits. CookQueue checks its own shared catalog (Firestore `products`), then [Open Food Facts](https://world.openfoodfacts.org) (free, open data), and fills in the product name, aisle and package size in oz / fl oz. Barcodes nobody has seen before are saved to the catalog when you publish, so the next person who scans them gets the same name and size. Browsers without a built-in barcode reader (iPhone Safari, Firefox) load a free open-source one (zxing-wasm) the first time someone scans.
 
 Until Firebase is configured, none of this appears and the site works exactly as before.
 
 ### Also included
-- **Rule validator:** Every recipe is checked against the dietary, appliance and effort rules. The recipe page shows "✓ Meets all PrepDash rules" with the full checklist.
+- **Rule validator:** Every recipe is checked against the dietary, appliance and effort rules. The recipe page shows "✓ Meets all CookQueue rules" with the full checklist.
 - **Prep Plan (cart):** Add several recipes and get one combined shopping list, with packages summed across recipes and open containers flagged. It's saved in `localStorage`.
 - **Generator modal:** A "✨ Generate a recipe" form (meal type, cuisine, diet, spice, appliance, max hands-on time). It currently picks the best mock match. This is where AI generation plugs in.
 - **Store-front browsing:** Category rail, quick filters, sort and search (by name, tag or ingredient).
@@ -68,7 +68,7 @@ js/
   data/mock-recipes.js        Starter menu (5 hand-written recipes) as a "batch"
   data/batch-template.js      Copy this to add a batch of recipes (e.g. from Gemini)
 images/                       Recipe photos, named <recipe-id>.webp
-docs/gemini-recipe-prompt.md  The prompt that makes Gemini write recipes in PrepDash format
+docs/gemini-recipe-prompt.md  The prompt that makes Gemini write recipes in CookQueue format
 docs/firebase-setup.md        Step-by-step: create the Firebase project, turn on Google sign-in, publish rules
 firestore.rules               Firestore security rules (who can read/write what); paste into the console
 firebase.json                 Emulator ports for local testing
@@ -79,7 +79,7 @@ tests/                        Dev-only Node tests: security rules + end-to-end, 
   lib/scheduler.js            Parallel-workflow scheduler (critical-path list scheduling)
   lib/barcode.js              UPC/EAN normalizing + camera/photo scanning (native BarcodeDetector or zxing-wasm)
   services/cloud-service.js   Firebase Auth + Firestore (sign-in, usernames, community recipe CRUD, barcode catalog)
-  services/product-service.js Barcode → product lookup (PrepDash catalog, then Open Food Facts)
+  services/product-service.js Barcode → product lookup (CookQueue catalog, then Open Food Facts)
   services/recipe-service.js  Data access layer: list(), get(), save(), remove(), generate(), validate()
   ui/components.js            Presentational HTML builders (cards, badges, chips)
   ui/timeline.js              Gantt renderer + step list
@@ -88,7 +88,7 @@ tests/                        Dev-only Node tests: security rules + end-to-end, 
   app.js                      Router, state, page rendering, event handling
 ```
 
-Scripts are plain, ordered `<script>` tags that share a `window.PrepDash` namespace, so the app also works when opened from `file://`. ES modules would need a server. Load order: config → data → libs → service → UI → app. The Firebase SDK is loaded from gstatic.com by `cloud-service.js` only when a config is set, and sign-in needs `http(s)://` (use `python3 -m http.server`, not `file://`).
+Scripts are plain, ordered `<script>` tags that share a `window.CookQueue` namespace, so the app also works when opened from `file://`. ES modules would need a server. Load order: config → data → libs → service → UI → app. The Firebase SDK is loaded from gstatic.com by `cloud-service.js` only when a config is set, and sign-in needs `http(s)://` (use `python3 -m http.server`, not `file://`).
 
 ### Data flow
 
@@ -122,7 +122,7 @@ All limits are in `js/config.js → RULES`, so you can change them in one place.
 | Appliances | Oven, Stovetop, Instant Pot Duo Plus, Bella Pro Series 8 QT Air Fryer, Panasonic Microwave | The freezer is allowed as storage |
 | Ninja Creami Deluxe | **Desserts only** | Flagged as `dessertOnly` and validated |
 
-Failures are logged to the console (`[PrepDash] "<name>" fails validation`) and shown on the recipe page.
+Failures are logged to the console (`[CookQueue] "<name>" fails validation`) and shown on the recipe page.
 
 ---
 

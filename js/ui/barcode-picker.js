@@ -1,5 +1,5 @@
 /**
- * PrepDash — "Scan or type a barcode" dialog used by the recipe editor.
+ * CookQueue — "Scan or type a barcode" dialog used by the recipe editor.
  *
  * open({ onPick }) shows the dialog in #modal-root. The person can point the
  * camera at a barcode, pick a photo of one, or type the digits. The code is
@@ -7,11 +7,11 @@
  * called with mode 'fill' (use the product's name and package size) or
  * 'link' (just attach the barcode).
  */
-window.PrepDash = window.PrepDash || {};
+window.CookQueue = window.CookQueue || {};
 
-PrepDash.BarcodePicker = (function () {
-  const { esc } = PrepDash.util;
-  const barcode = PrepDash.barcode;
+CookQueue.BarcodePicker = (function () {
+  const { esc } = CookQueue.util;
+  const barcode = CookQueue.barcode;
 
   function open({ onPick, current = '' }) {
     const root = document.getElementById('modal-root');
@@ -52,7 +52,7 @@ PrepDash.BarcodePicker = (function () {
       $('.bc-type').code.value = gtin;
       msg(`Looking up ${gtin}…`);
       $('.bc-result').innerHTML = '';
-      const { product, from, offline } = await PrepDash.ProductService.lookup(gtin);
+      const { product, from, offline } = await CookQueue.ProductService.lookup(gtin);
       if (!root.contains($('.bc-result'))) return;
       if (product) {
         msg('');
@@ -60,7 +60,7 @@ PrepDash.BarcodePicker = (function () {
           <div class="bc-found">
             <b>${esc(product.name)}</b>
             <span class="muted small">${product.brand ? `${esc(product.brand)} · ` : ''}${product.size ? `${esc(product.label || `${product.size} ${product.unit}`)}` : 'Package size unknown'} · ${esc(product.group || '')}</span>
-            <span class="muted small">From ${from === 'prepdash' ? 'PrepDash recipes' : 'Open Food Facts'} · ${esc(gtin)}</span>
+            <span class="muted small">From ${from === 'cookqueue' ? 'CookQueue recipes' : 'Open Food Facts'} · ${esc(gtin)}</span>
           </div>
           <button type="button" class="btn btn-primary btn-block" data-bc="fill">Use this name and package size</button>
           <button type="button" class="btn btn-ghost btn-block" data-bc="link">Keep my wording, just add the barcode</button>`;

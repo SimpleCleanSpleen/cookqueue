@@ -1,12 +1,12 @@
 /**
- * PrepDash — mock recipe data.
+ * CookQueue — mock recipe data.
  *
  * This array is intentionally pure JSON (no functions, no computed values)
  * so it can be replaced 1:1 by the output of a recipe generator / API.
  * See README.md → "Recipe Schema" for field-by-field documentation.
  *
  * Recipes are grouped into "batches". Each batch file pushes one object onto
- * PrepDash.RECIPE_BATCHES, so AI-generated batches can be added as new files
+ * CookQueue.RECIPE_BATCHES, so AI-generated batches can be added as new files
  * (see batch-template.js) without editing this one.
  *
  * Conventions
@@ -18,10 +18,10 @@
  *    fraction of that time that grows linearly with batch size.
  *  - Step `active: true` = hands-on work (occupies a cook). `false` = passive/hands-off.
  */
-window.PrepDash = window.PrepDash || {};
+window.CookQueue = window.CookQueue || {};
 
-PrepDash.RECIPE_BATCHES = PrepDash.RECIPE_BATCHES || [];
-PrepDash.RECIPE_BATCHES.push({
+CookQueue.RECIPE_BATCHES = CookQueue.RECIPE_BATCHES || [];
+CookQueue.RECIPE_BATCHES.push({
   name: 'Starter menu (hand-written mocks)',
   recipes: [
   /* ------------------------------------------------------------------ */
@@ -347,7 +347,7 @@ PrepDash.RECIPE_BATCHES.push({
     },
     "notes": [
       "Each Deluxe pint holds 2 servings, so a pint is dessert for two.",
-      "The Ninja Creami is used only for desserts, per PrepDash appliance rules."
+      "The Ninja Creami is used only for desserts, per CookQueue appliance rules."
     ]
   }
 ]

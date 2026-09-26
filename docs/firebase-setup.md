@@ -15,7 +15,7 @@ You'll finish with two things to send Claude:
 
 1. Go to https://console.firebase.google.com and sign in with your Google account.
 2. **Create a project** (sometimes shown as "Add project" or "Get started").
-   - Name: `prepdash` (Firebase may add a few characters to make it unique).
+   - Name: `cookqueue` (Firebase may add a few characters to make it unique).
    - Keep it separate from your game's project.
    - Google Analytics: **turn it off**. It isn't needed.
 3. Wait for it to finish, then click **Continue**.
@@ -26,7 +26,7 @@ Don't click "Upgrade" or pick the Blaze plan anywhere. Spark is the default.
 
 1. On the project's overview page, click the **Web** icon (`</>`). It may
    be under "Add app".
-2. App nickname: `PrepDash site`. Leave **Firebase Hosting unchecked**
+2. App nickname: `CookQueue site`. Leave **Firebase Hosting unchecked**
    (the site stays on GitHub Pages).
 3. Click **Register app**. Firebase shows a code snippet with
    `const firebaseConfig = { apiKey: "…", authDomain: "…", … };`
@@ -81,7 +81,7 @@ Then:
 
 ## Free limits (Spark plan)
 
-| What | Free per day | What PrepDash uses |
+| What | Free per day | What CookQueue uses |
 |---|---|---|
 | Database reads | 50,000 | ~1 per recipe per visit, plus 1 per recipe author |
 | Database writes | 20,000 | 1–3 per save |
