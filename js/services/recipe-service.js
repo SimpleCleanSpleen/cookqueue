@@ -1,19 +1,19 @@
 /**
- * PrepDash — Recipe service (data access layer).
+ * CookQueue — Recipe service (data access layer).
  *
  * The UI talks ONLY to this service, never to the batch files or Firebase
  * directly. Recipes come from two places:
- *  - batch files (js/data/*.js pushing onto PrepDash.RECIPE_BATCHES)
- *  - community recipes in Firestore, via PrepDash.Cloud (when enabled)
+ *  - batch files (js/data/*.js pushing onto CookQueue.RECIPE_BATCHES)
+ *  - community recipes in Firestore, via CookQueue.Cloud (when enabled)
  * Both go through the same validate() rules.
  */
-window.PrepDash = window.PrepDash || {};
+window.CookQueue = window.CookQueue || {};
 
-PrepDash.RecipeService = (function () {
-  const { RULES, APPLIANCES } = PrepDash.config;
-  const { clone, delay, fmtNum } = PrepDash.util;
-  const { fatPct } = PrepDash.nutrition;
-  const { activeMinutes } = PrepDash.scheduler;
+CookQueue.RecipeService = (function () {
+  const { RULES, APPLIANCES } = CookQueue.config;
+  const { clone, delay, fmtNum } = CookQueue.util;
+  const { fatPct } = CookQueue.nutrition;
+  const { activeMinutes } = CookQueue.scheduler;
 
   const isNum = v => typeof v === 'number' && Number.isFinite(v);
   const isStr = v => typeof v === 'string';
@@ -56,7 +56,7 @@ PrepDash.RecipeService = (function () {
   }
 
   /**
-   * Validate a recipe against PrepDash's dietary, appliance and effort rules.
+   * Validate a recipe against CookQueue's dietary, appliance and effort rules.
    * Run it on every recipe, and especially on AI-generated ones before display.
    * @returns {{ok:boolean, errors:string[], checks:Array<{label:string, ok:boolean}>}}
    */
@@ -109,7 +109,7 @@ PrepDash.RecipeService = (function () {
     const stepIds = r.steps.map(s => s.id);
     if (new Set(stepIds).size !== stepIds.length) errors.push('Duplicate step ids');
     if (!errors.length) {
-      try { PrepDash.scheduler.schedule(r, { servings: r.baseServings, cooks: 1 }); }
+      try { CookQueue.scheduler.schedule(r, { servings: r.baseServings, cooks: 1 }); }
       catch (err) { errors.push(err.message); } // e.g. circular dependsOn
     }
 
@@ -117,7 +117,7 @@ PrepDash.RecipeService = (function () {
   }
 
   /** All recipes from every loaded batch file (see js/data/batch-template.js). */
-  const allRecipes = () => (PrepDash.RECIPE_BATCHES || []).flatMap(b =>
+  const allRecipes = () => (CookQueue.RECIPE_BATCHES || []).flatMap(b =>
     (b.recipes || []).flat().map(r => ({ ...r, batch: b.name })));
 
   /** Recipes hidden by the last list() call, with the reasons. */
@@ -127,12 +127,12 @@ PrepDash.RecipeService = (function () {
   let community = [];
 
   async function loadCommunity() {
-    const Cloud = PrepDash.Cloud;
+    const Cloud = CookQueue.Cloud;
     if (!Cloud || !Cloud.enabled) return [];
     try {
       return (await Cloud.listRecipes()).map(r => ({ ...r, batch: `Community (by ${r.community.author})` }));
     } catch (err) {
-      console.warn('[PrepDash] Could not load community recipes:', err);
+      console.warn('[CookQueue] Could not load community recipes:', err);
       return [];
     }
   }
@@ -155,7 +155,7 @@ PrepDash.RecipeService = (function () {
       }
       if (errors.length) {
         rejected.push({ id: r.id, name: r.name, batch: r.batch, errors, recipe: clone(r) });
-        console.warn(`[PrepDash] Hidden "${r.name || r.id}" (${r.batch}):`, errors);
+        console.warn(`[CookQueue] Hidden "${r.name || r.id}" (${r.batch}):`, errors);
       } else {
         seen.add(r.id);
         ok.push(clone(r));
@@ -176,13 +176,13 @@ PrepDash.RecipeService = (function () {
   async function save(recipe, id = null) {
     const check = validate(recipe);
     if (!check.ok) throw new Error(check.errors.join('; '));
-    const savedId = id ? (await PrepDash.Cloud.updateRecipe(id, recipe), id) : await PrepDash.Cloud.createRecipe(recipe);
-    PrepDash.ProductService.contribute(recipe); // shares new barcodes; never blocks the save
+    const savedId = id ? (await CookQueue.Cloud.updateRecipe(id, recipe), id) : await CookQueue.Cloud.createRecipe(recipe);
+    CookQueue.ProductService.contribute(recipe); // shares new barcodes; never blocks the save
     return savedId;
   }
 
   async function remove(id) {
-    await PrepDash.Cloud.deleteRecipe(id);
+    await CookQueue.Cloud.deleteRecipe(id);
   }
 
   /**

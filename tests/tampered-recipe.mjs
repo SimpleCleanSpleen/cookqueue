@@ -11,12 +11,12 @@ const p = await ctx.newPage();
 let pwned = false; await p.exposeFunction('pwn', () => { pwned = true; });
 await p.goto('http://localhost:8000/?emulator#/');
 await p.waitForSelector('.card');
-console.log('mock recipes valid:', await p.evaluate(() => PrepDash.RECIPE_BATCHES[0].recipes.map(r => PrepDash.RecipeService.validate(r).ok).join(',')));
+console.log('mock recipes valid:', await p.evaluate(() => CookQueue.RECIPE_BATCHES[0].recipes.map(r => CookQueue.RecipeService.validate(r).ok).join(',')));
 // attacker writes a doc directly, bypassing the form
 await p.evaluate(async () => {
   await firebase.auth().signInWithCredential(firebase.auth.GoogleAuthProvider.credential(JSON.stringify({ sub: 'evil', email: 'e@x.com', email_verified: true })));
-  await PrepDash.Cloud.setUsername('evil');
-  const r = structuredClone(PrepDash.RECIPE_BATCHES[0].recipes[1]);
+  await CookQueue.Cloud.setUsername('evil');
+  const r = structuredClone(CookQueue.RECIPE_BATCHES[0].recipes[1]);
   delete r.id; delete r.rating; delete r.ratingCount;
   r.nutritionPerServing.protein = '<img src=x onerror=pwn()>';
   r.storage.fridgeDays = '<img src=x onerror=pwn()>';

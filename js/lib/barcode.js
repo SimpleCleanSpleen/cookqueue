@@ -1,5 +1,5 @@
 /**
- * PrepDash — barcode helpers (UPC / EAN, a.k.a. GTIN).
+ * CookQueue — barcode helpers (UPC / EAN, a.k.a. GTIN).
  *
  * Normalizes codes so the same product always gets the same key, and finds
  * barcodes in a camera stream or photo. Uses the browser's built-in
@@ -7,9 +7,9 @@
  * loads a free open-source replacement (zxing-wasm, ~1 MB, from jsDelivr)
  * the first time someone scans.
  */
-window.PrepDash = window.PrepDash || {};
+window.CookQueue = window.CookQueue || {};
 
-PrepDash.barcode = (function () {
+CookQueue.barcode = (function () {
   const POLYFILL = 'https://cdn.jsdelivr.net/npm/barcode-detector@3.2.2/dist/iife/ponyfill.js';
   const FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e'];
 

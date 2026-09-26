@@ -1,13 +1,13 @@
 /**
- * PrepDash — global configuration & rule set.
+ * CookQueue — global configuration & rule set.
  *
  * Everything that encodes a *business rule* (dietary limits, approved
  * appliances, color scales) lives here so the UI and the validator read
  * from a single source of truth.
  */
-window.PrepDash = window.PrepDash || {};
+window.CookQueue = window.CookQueue || {};
 
-PrepDash.config = {
+CookQueue.config = {
   /** Hard constraints every recipe (mock or generated) must satisfy. */
   RULES: {
     /**
@@ -85,5 +85,5 @@ PrepDash.config = {
     { id: 'dessert',       label: 'Dessert',      emoji: '🍨', match: r => r.category === 'dessert' },
   ],
 
-  STORAGE_KEY: 'prepdash.plan.v1',
+  STORAGE_KEY: 'cookqueue.plan.v1',
 };

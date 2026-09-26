@@ -1,5 +1,5 @@
 /**
- * PrepDash — Parallel workflow scheduler (powers the Gantt timeline).
+ * CookQueue — Parallel workflow scheduler (powers the Gantt timeline).
  *
  * Model
  *  - Each step has a duration, dependencies, and optionally an appliance.
@@ -15,11 +15,11 @@
  *  4. Active steps go to whichever cook can start soonest, unless the user
  *     has pinned the step to a specific cook (`overrides`).
  */
-window.PrepDash = window.PrepDash || {};
+window.CookQueue = window.CookQueue || {};
 
-PrepDash.scheduler = (function () {
-  const { APPLIANCES } = PrepDash.config;
-  const { scaleDuration } = PrepDash.scaler;
+CookQueue.scheduler = (function () {
+  const { APPLIANCES } = CookQueue.config;
+  const { scaleDuration } = CookQueue.scaler;
 
   /** Earliest start ≥ t where [start, start+dur) doesn't overlap sorted intervals. */
   function fit(intervals, t, dur) {

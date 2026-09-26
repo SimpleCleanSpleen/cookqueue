@@ -1,9 +1,9 @@
 /**
- * PrepDash — small, dependency-free helpers (formatting, escaping).
+ * CookQueue — small, dependency-free helpers (formatting, escaping).
  */
-window.PrepDash = window.PrepDash || {};
+window.CookQueue = window.CookQueue || {};
 
-PrepDash.util = (function () {
+CookQueue.util = (function () {
   const FRACTIONS = [
     [0, ''], [1 / 8, '⅛'], [1 / 4, '¼'], [1 / 3, '⅓'], [3 / 8, '⅜'], [1 / 2, '½'],
     [5 / 8, '⅝'], [2 / 3, '⅔'], [3 / 4, '¾'], [7 / 8, '⅞'], [1, ''],
@@ -85,7 +85,7 @@ PrepDash.util = (function () {
       : [];
     chain.push(placeholderImage(recipe.name));
     return `src="${esc(url || chain[chain.length - 1])}" alt="${esc(recipe.image?.alt || recipe.name)}"
-      data-fallbacks="${esc(JSON.stringify(chain))}" onerror="PrepDash.util.nextImage(this)"`;
+      data-fallbacks="${esc(JSON.stringify(chain))}" onerror="CookQueue.util.nextImage(this)"`;
   }
 
   /** onerror handler: try the next fallback URL. */

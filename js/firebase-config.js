@@ -1,5 +1,5 @@
 /**
- * PrepDash — Firebase settings (sign-in + community recipes).
+ * CookQueue — Firebase settings (sign-in + community recipes).
  *
  * Leave `config` as null and the site works exactly as before: batch-file
  * recipes only, with no sign-in button.
@@ -14,9 +14,9 @@
  * Local testing against the Firebase emulators (no real project needed):
  *   http://localhost:8000/?emulator
  */
-window.PrepDash = window.PrepDash || {};
+window.CookQueue = window.CookQueue || {};
 
-PrepDash.FIREBASE = {
+CookQueue.FIREBASE = {
   config: null,
   // config: {
   //   apiKey: '…',

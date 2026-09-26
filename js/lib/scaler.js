@@ -1,13 +1,13 @@
 /**
- * PrepDash — Smart Serving Scaler.
+ * CookQueue — Smart Serving Scaler.
  *
  * An "optimal batch" is a serving count where every tracked (perishable,
  * packaged) ingredient is consumed in WHOLE packages: no half-used bag of
  * frozen broccoli or open can left in the fridge. Pantry staples are ignored.
  */
-window.PrepDash = window.PrepDash || {};
+window.CookQueue = window.CookQueue || {};
 
-PrepDash.scaler = (function () {
+CookQueue.scaler = (function () {
   const EPS = 0.001;
 
   const isTracked = ing => !!ing.package && !ing.pantry;

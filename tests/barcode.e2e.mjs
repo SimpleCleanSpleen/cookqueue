@@ -1,7 +1,7 @@
 // Barcode flow against the Firebase emulators: type a UPC (found on the mocked
 // Open Food Facts), read an EAN-13 from a photo (unknown product, typed in by
 // hand), scan one with a fake webcam, publish, then a second user gets the
-// hand-typed product back from the shared PrepDash catalog. See tests/README.md.
+// hand-typed product back from the shared CookQueue catalog. See tests/README.md.
 import { chromium } from 'playwright-core';
 import { execFileSync } from 'child_process';
 import fs from 'fs';
@@ -56,7 +56,7 @@ await page.waitForSelector('#account [data-action="sign-in"]');
 await signIn('jeremy@example.com', 'jeremy_cooks');
 await page.goto(`${BASE}#/add`);
 await page.waitForSelector('.editor-form .ed-section');
-const json = await page.evaluate(() => { const r = structuredClone(PrepDash.RECIPE_BATCHES[0].recipes[1]); r.name = 'Barcode Test Chicken'; return JSON.stringify(r); });
+const json = await page.evaluate(() => { const r = structuredClone(CookQueue.RECIPE_BATCHES[0].recipes[1]); r.name = 'Barcode Test Chicken'; return JSON.stringify(r); });
 await page.click('.ed-import summary');
 await page.fill('#ed-json', json);
 await page.click('[data-ed="import"]');
@@ -115,7 +115,7 @@ await page.click('[data-ed="barcode"][data-i="0"]');
 await page.fill('.bc-type input', '4006381333931');
 await page.click('.bc-type [type=submit]');
 await page.waitForSelector('[data-bc="fill"]');
-expect((await page.textContent('.bc-found')).includes('From PrepDash recipes'), 'found in the PrepDash catalog');
+expect((await page.textContent('.bc-found')).includes('From CookQueue recipes'), 'found in the CookQueue catalog');
 expect(offCalls.length === callsBefore, 'no Open Food Facts call needed');
 await page.click('[data-bc="fill"]');
 expect(await nameOf(0) === 'Store-brand frozen broccoli florets', 'friend gets the same name');

@@ -1,12 +1,12 @@
 /**
- * PrepDash — presentational components (pure functions → HTML strings).
+ * CookQueue — presentational components (pure functions → HTML strings).
  */
-window.PrepDash = window.PrepDash || {};
+window.CookQueue = window.CookQueue || {};
 
-PrepDash.ui = (function () {
-  const { esc, fmtMinutes, fmtNum, titleCase, imgAttrs } = PrepDash.util;
-  const { calorieColor, calorieGradient, rangeFor } = PrepDash.nutrition;
-  const { APPLIANCES, MACRO_COLORS, COOKS, RULES } = PrepDash.config;
+CookQueue.ui = (function () {
+  const { esc, fmtMinutes, fmtNum, titleCase, imgAttrs } = CookQueue.util;
+  const { calorieColor, calorieGradient, rangeFor } = CookQueue.nutrition;
+  const { APPLIANCES, MACRO_COLORS, COOKS, RULES } = CookQueue.config;
 
   const TAG_ICONS = {
     'mexican': '🌮', 'asian': '🥢', 'mediterranean': '🫒', 'vegan': '🌱', 'vegetarian': '🥕',
