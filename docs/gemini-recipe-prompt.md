@@ -79,6 +79,7 @@ FIELD RULES
 - ingredients[].group: "Protein" | "Dairy" | "Canned" | "Frozen" | "Produce" | "Pantry".
 - ingredients[].unit: "oz" | "fl oz" | "cup" | "tbsp" | "tsp" | "can" | "box" | "bunch" | "each" | "scoop". It MUST be the same unit as package.unit. For counted items (limes, peppers, cans) use unit "each", "can", or "bunch" with package size 1. Add "singular" for "each" items.
 - Pantry staples (spices, oils, honey, dry rice/lentils/oats, protein powder) use "package": null and "pantry": true. They still count toward the 10-ingredient limit.
+- Don't include a "barcode" field. Barcodes are added later by scanning real packages.
 - qtyPerServing is PER SERVING, not per batch.
 - steps: durationMin is measured at baseServings. durationScaling (0–1) is the share of that time that grows with batch size (chopping ≈ 0.8, portioning = 1, simmering/baking ≈ 0–0.2). "active": true means hands-on, false means hands-off. Split "load the appliance" (active) from "cook" (passive) so the timeline can run tasks in parallel. Make oven preheating its own passive "oven" step. dependsOn lists the step ids that must finish first. No circular dependencies. The last step is portioning into containers.
 - appliances: every appliance used in the steps (freezer doesn't need listing).

@@ -11,10 +11,12 @@ npm run emulators &                          # Auth on :9099, Firestore on :8085
 (cd .. && python3 -m http.server 8000 &)     # the site
 npm run test:rules                           # security rules: who can read/write what
 npm run test:e2e                             # sign in → username → publish → edit → other user blocked → delete,
-                                             # then a tampered Firestore doc must be hidden, not rendered
+                                             # then a tampered Firestore doc must be hidden, not rendered,
+                                             # then barcodes: typed, from a photo, from a fake webcam, shared catalog
 ```
 
-Screenshots land in `tests/screenshots/` (git-ignored).
+Screenshots land in `tests/screenshots/` (git-ignored). The barcode test draws its own
+barcode images with `make-barcodes.py` (plain Python) and mocks Open Food Facts.
 
 To click through by hand with the emulators, open http://localhost:8000/?emulator.
 Sign-in then uses the emulator's fake Google accounts.

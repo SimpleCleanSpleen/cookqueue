@@ -649,6 +649,26 @@ body.drawer-open .drawer-backdrop { opacity: 1; pointer-events: auto; }
 .ed-checks .bad { color: var(--warn); font-weight: 600; }
 .editor-side .muted.small { margin-top: 8px; }
 
+/* ---------- Barcodes ---------- */
+.barcode-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; }
+.barcode-chip {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; font-weight: 700;
+  background: var(--bg-2); border-radius: 8px; padding: 6px 10px; letter-spacing: .04em;
+}
+.bc-note:empty { display: none; }
+.bc-note { width: 100%; color: var(--warn); font-weight: 600; }
+.bc-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 4px; }
+.bc-actions label.btn { cursor: pointer; }
+.bc-type { display: flex; align-items: flex-end; gap: 8px; }
+.bc-type .field { flex: 1; margin-bottom: 0; }
+.bc-type .btn { margin-bottom: 2px; }
+.bc-msg { display: block; margin-top: 10px; min-height: 1em; }
+.bc-camera { position: relative; margin-top: 14px; border-radius: 14px; overflow: hidden; background: #000; aspect-ratio: 4 / 3; }
+.bc-camera video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.bc-aim { position: absolute; left: 12%; right: 12%; top: 38%; bottom: 38%; border: 3px solid rgba(255,255,255,.85); border-radius: 10px; box-shadow: 0 0 0 999px rgba(0,0,0,.25); }
+.bc-found { display: flex; flex-direction: column; gap: 2px; background: var(--bg-2); border-radius: 12px; padding: 12px 14px; margin: 8px 0 12px; }
+.bc-result .btn + .btn { margin-top: 8px; }
+
 /* ---------- Responsive ---------- */
 @media (max-width: 1020px) {
   .recipe-layout { grid-template-columns: minmax(0, 1fr); }

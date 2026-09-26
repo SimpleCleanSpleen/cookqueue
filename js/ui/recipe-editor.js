@@ -13,6 +13,7 @@ PrepDash.RecipeEditor = (function () {
   const { RULES, APPLIANCES } = PrepDash.config;
 
   const UNITS = ['oz', 'fl oz', 'cup', 'tbsp', 'tsp', 'can', 'box', 'bunch', 'each', 'scoop'];
+  const COUNT_UNITS = ['can', 'box', 'bunch', 'each', 'scoop'];
   const GROUPS = ['Protein', 'Dairy', 'Canned', 'Frozen', 'Produce', 'Pantry'];
   const CUISINES = ['american', 'asian', 'indian', 'italian', 'mediterranean', 'mexican', 'middle eastern', 'other'];
   const TAGS = ['vegan', 'vegetarian', 'gluten free', 'dairy free', 'high protein', 'high fiber', 'low carb', 'no added salt', 'low sodium'];
@@ -80,6 +81,7 @@ PrepDash.RecipeEditor = (function () {
         if (!out.package.label) out.package.label = `${fmtNum(out.package.size)} ${i.unit}`;
       }
       if (!out.singular) delete out.singular;
+      if (!out.barcode) delete out.barcode;
       return out;
     });
     const toNum = v => (v === '' || v == null || isNaN(+v) ? 0 : +v);
@@ -190,12 +192,41 @@ PrepDash.RecipeEditor = (function () {
         </div>
         <label class="inline-check"><input type="checkbox" data-path="${p}.pantry" data-kind="bool" data-rerender ${i.pantry ? 'checked' : ''}>
           Pantry staple (spices, oil, rice…). Not counted in the zero-waste math.</label>
+        <div class="barcode-row">
+          ${i.barcode
+            ? `<span class="barcode-chip" title="Barcode (UPC/EAN)">▥ ${esc(i.barcode)}</span>
+               <button type="button" class="btn btn-ghost btn-small" data-ed="barcode" data-i="${k}">Change</button>
+               <button type="button" class="btn btn-ghost btn-small" data-ed="barcode-remove" data-i="${k}">Remove</button>`
+            : `<button type="button" class="btn btn-ghost btn-small" data-ed="barcode" data-i="${k}">▥ Scan or type barcode</button>
+               <small class="field-hint">Optional. Fills in the product name and package size.</small>`}
+          <small class="field-hint bc-note" data-bc-note="${k}"></small>
+        </div>
         ${i.pantry ? '' : `
         <div class="field-grid field-grid--pkg">
           ${field(`Package size (${esc(i.unit)})`, num(`${p}.package.size`, i.package?.size, 'min="0" step="any"'), 'How much comes in one package')}
-          ${field('Package name', text(`${p}.package.label`, i.package?.label, 'placeholder="e.g. 2 lb family pack"'))}
+          ${field('Package name', text(`${p}.package.label`, i.package?.label, 'maxlength="60" placeholder="e.g. 2 lb family pack"'))}
         </div>`}
       </li>`;
+  }
+
+  /**
+   * Applies a barcode lookup to an ingredient. 'fill' takes the product's
+   * name, aisle and package size. Returns a note for the person, if any.
+   */
+  function applyBarcode(ing, { gtin, product, mode }) {
+    ing.barcode = gtin;
+    if (mode !== 'fill' || !product) return '';
+    ing.name = product.name;
+    if (product.group) ing.group = product.group;
+    if (ing.pantry || !product.size) return product.size ? '' : 'Package size unknown. Please fill it in.';
+    if (COUNT_UNITS.includes(ing.unit)) {
+      ing.package = { size: 1, unit: ing.unit, label: `${product.size} ${product.unit} ${ing.unit === 'each' ? 'package' : ing.unit}` };
+      return '';
+    }
+    const changed = ing.unit !== product.unit;
+    ing.unit = product.unit;
+    ing.package = { size: product.size, unit: product.unit, label: product.label || `${product.size} ${product.unit}` };
+    return changed ? `Amounts are now in ${product.unit}. Check the per-serving amount.` : '';
   }
 
   function ingredientsHTML(m) {
@@ -431,6 +462,19 @@ PrepDash.RecipeEditor = (function () {
       switch (el.dataset.ed) {
         case 'ing-add': m.ingredients.push(blankIngredient()); rerender('ingredients'); break;
         case 'ing-remove': m.ingredients.splice(k, 1); rerender('ingredients'); break;
+        case 'barcode':
+          PrepDash.BarcodePicker.open({
+            current: m.ingredients[k].barcode || '',
+            onPick: pick => {
+              const note = applyBarcode(m.ingredients[k], pick);
+              rerender('ingredients');
+              const el = $(`[data-bc-note="${k}"]`);
+              if (el && note) el.textContent = note;
+              changed();
+            },
+          });
+          return;
+        case 'barcode-remove': delete m.ingredients[k].barcode; rerender('ingredients'); break;
         case 'step-add': m.steps.push(blankStep()); rerender('steps'); break;
         case 'step-remove': {
           const [gone] = m.steps.splice(k, 1);

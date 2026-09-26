@@ -28,6 +28,8 @@ Once Firebase is switched on (see [docs/firebase-setup.md](docs/firebase-setup.m
 - **My recipes** (account menu, top right) lists everything you've shared, including any that are hidden because they break a rule.
 - A **Community** category on the home page. Community recipes show "New" until real ratings arrive.
 
+- **Barcodes:** each ingredient can have a UPC/EAN. Scan it with the phone camera, pick a photo of it, or type the digits. PrepDash checks its own shared catalog (Firestore `products`), then [Open Food Facts](https://world.openfoodfacts.org) (free, open data), and fills in the product name, aisle and package size in oz / fl oz. Barcodes nobody has seen before are saved to the catalog when you publish, so the next person who scans them gets the same name and size. Browsers without a built-in barcode reader (iPhone Safari, Firefox) load a free open-source one (zxing-wasm) the first time someone scans.
+
 Until Firebase is configured, none of this appears and the site works exactly as before.
 
 ### Also included
@@ -75,10 +77,13 @@ tests/                        Dev-only Node tests: security rules + end-to-end, 
   lib/nutrition.js            Calorie → color interpolation, macro math
   lib/scaler.js               Optimal-batch / zero-waste calculator
   lib/scheduler.js            Parallel-workflow scheduler (critical-path list scheduling)
-  services/cloud-service.js   Firebase Auth + Firestore (sign-in, usernames, community recipe CRUD)
+  lib/barcode.js              UPC/EAN normalizing + camera/photo scanning (native BarcodeDetector or zxing-wasm)
+  services/cloud-service.js   Firebase Auth + Firestore (sign-in, usernames, community recipe CRUD, barcode catalog)
+  services/product-service.js Barcode → product lookup (PrepDash catalog, then Open Food Facts)
   services/recipe-service.js  Data access layer: list(), get(), save(), remove(), generate(), validate()
   ui/components.js            Presentational HTML builders (cards, badges, chips)
   ui/timeline.js              Gantt renderer + step list
+  ui/barcode-picker.js        "Add a barcode" dialog (camera, photo, or typed digits)
   ui/recipe-editor.js         Add / edit recipe form with live rule check
   app.js                      Router, state, page rendering, event handling
 ```
@@ -186,7 +191,8 @@ Recipes are **pure JSON**: no functions and no computed fields. A generator only
       "group": "Protein|Dairy|Canned|Frozen|Produce|Pantry",
       "qtyPerServing": 6, "unit": "oz",       // oz, fl oz, cup, tbsp, tsp, can, box, bunch, each, scoop
       "prep": "thawed",
-      "package": { "size": 16, "unit": "oz", "label": "16 oz bag" }  // unit MUST equal ingredient unit
+      "package": { "size": 16, "unit": "oz", "label": "16 oz bag" },  // unit MUST equal ingredient unit
+      "barcode": "0071430010100"              // optional UPC/EAN (8 or 13 digits, UPC-A padded to 13)
     },
     { "id": "rice", "name": "Jasmine rice", "group": "Pantry", "qtyPerServing": 0.5, "unit": "cup",
       "prep": "", "package": null, "pantry": true }                 // ignored by zero-waste math
@@ -251,6 +257,7 @@ Firestore layout (rules in `firestore.rules`):
 | `users` | Firebase uid | `username`, `usernameLower`, `updatedAt` | that user |
 | `usernames` | lower-case username | `uid` | the user claiming it (keeps names unique) |
 | `recipes` | `<slug>-<5 random chars>` | the recipe schema above (no `id`/`rating`) + `ownerUid`, `createdAt`, `updatedAt` | owner only; owner can't be changed |
+| `products` | normalized barcode (GTIN) | `name`, `brand`, `size`, `unit`, `label`, `group`, `source` (`openfoodfacts`/`user`), `createdBy`, `updatedAt` | anyone with a username adds; first entry wins; only its creator can correct it; never deleted |
 
 The author's username is looked up from `users/{ownerUid}` when recipes load, so renaming updates every recipe. Photos are shrunk in the browser (≤ 1000 px, about 260 KB max) and stored in `image.url` as a `data:` URL, because Cloud Storage needs the paid Blaze plan.
 

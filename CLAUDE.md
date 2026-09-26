@@ -27,6 +27,8 @@ All of these are enforced in `js/config.js` (`RULES`) and `RecipeService.validat
 - **Images:** one per recipe (the dish on a white paper plate, which was chosen over the Bentgo shot). The owner generates them free in the Gemini app. The Gemini *API* has no free tier for images; its Batch API costs about $0.42–0.49 per 25. A script to automate that is an open offer.
 - **Ratings/reviews:** placeholders for batch recipes. Community recipes show "New". Real reviews come later.
 - **Usernames:** unique, case-insensitive, 3–20 letters/numbers/underscores, changeable. Recipes store `ownerUid` only, and the name is looked up at load time. Google name/email is never shown publicly.
+- **Barcodes (Sept 26, 2026):** ingredients may carry a `barcode` (normalized GTIN: UPC-A padded to 13 digits). Lookup order: Firestore `products` catalog, then Open Food Facts (free, CORS OK, no key). Unknown barcodes are added to the catalog on publish, first entry wins. Gemini must not invent barcodes.
+- **Instacart:** discussed only. No-commission links are possible through the Instacart Developer Platform (needs a free dev key, a ~30–40 day production review, and a free server such as a Cloudflare Worker to hide the key; line items can carry UPCs). Nothing built yet.
 - **Budget:** the owner wants to spend $0. Only free tiers, and tell them if anything would cost money. Claude can't see their Claude usage or credit balance.
 - **Dessert servings:** a Ninja Creami Deluxe pint = 2 servings (`servingsPerContainer: 2`).
 - **Validation:** recipes that break a rule are hidden (not shown with warnings). A banner on the home page names them, and the console lists the reasons.
