@@ -1,8 +1,8 @@
 /**
  * CookQueue — Firebase settings (sign-in + community recipes).
  *
- * Leave `config` as null and the site works exactly as before: batch-file
- * recipes only, with no sign-in button.
+ * Set `config` to null to switch Firebase off: batch-file recipes only, with
+ * no sign-in button.
  *
  * To turn it on, paste the "firebaseConfig" object from
  * Firebase console → Project settings → Your apps → Web app.
@@ -17,15 +17,14 @@
 window.CookQueue = window.CookQueue || {};
 
 CookQueue.FIREBASE = {
-  config: null,
-  // config: {
-  //   apiKey: '…',
-  //   authDomain: 'your-project.firebaseapp.com',
-  //   projectId: 'your-project',
-  //   storageBucket: 'your-project.appspot.com',
-  //   messagingSenderId: '…',
-  //   appId: '…',
-  // },
+  config: {
+    apiKey: 'AIzaSyCnyRkMuJscX-tw689RyCnjZKB6SAjzY3M',
+    authDomain: 'cookqueue.firebaseapp.com',
+    projectId: 'cookqueue',
+    storageBucket: 'cookqueue.firebasestorage.app',
+    messagingSenderId: '803703469250',
+    appId: '1:803703469250:web:8d5f6618876a562faff75b',
+  },
 
   /** Firebase JS SDK version (loaded from gstatic.com only when enabled). */
   sdkVersion: '10.14.1',
