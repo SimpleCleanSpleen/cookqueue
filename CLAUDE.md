@@ -26,19 +26,20 @@ Work on a branch and open a PR. The owner lets Claude merge, with these conditio
 
 ## Current state (Sept 26, 2026)
 - **Live:** menu browsing with search, filters and sort; the zero-waste batch scaler; the Gantt cooking timeline (1–3 cooks, appliance limits); macro badges; the Prep Plan with its shopping list (saved in `localStorage` under `cookqueue.plan.v1`); a mock "Generate a recipe" modal that picks the best existing recipe. Only the 5 starter recipes in `js/data/mock-recipes.js` exist so far.
-- **Built and tested but off:** Firebase stays off while `CookQueue.FIREBASE.config` in `js/firebase-config.js` is `null`. Once the owner turns it on, this unlocks the following on the free Spark plan in a separate project:
+- **Firebase is on (Sept 26).** `CookQueue.FIREBASE.config` in `js/firebase-config.js` has the `cookqueue` project's real config, and the owner published `firestore.rules` in the console. The live site now shows a Sign in button. This unlocks, on the free Spark plan:
   - Google sign-in with unique usernames (3–20 letters, numbers or `_`, case-insensitive, changeable). Recipes store only `ownerUid`, and the Google name and email are never shown.
   - Community recipes: the Add, Edit and My Recipes pages, which can also take pasted Gemini JSON.
   - Barcode scanning. Barcodes are GTINs, with UPC-A padded to 13 digits. Lookup checks the Firestore `products` catalog first, then Open Food Facts. An unknown barcode is added to the catalog on publish, and the first entry wins.
+  - Still needed from the owner: add `cookqueue.fyi` and `www.cookqueue.fyi` to Firebase's authorized domains if not done already, and confirm sign-in works on the live site.
 - **Placeholder:** ratings and reviews (community recipes show "New").
 - **Domain:** `cookqueue.fyi`, bought at Porkbun (Sept 26). The `CNAME` file and DNS are done (Sept 26); GitHub Pages is now serving the site there. Still open: the owner needs to tick "Enforce HTTPS" once the certificate is issued, and add `cookqueue.fyi` + `www.cookqueue.fyi` in Firebase's authorized domains.
 - **Recipe batches:** Batch 01 (25 recipes from Gemini) is live in `js/data/batch-01.js`. Photos aren't generated yet, so these show the placeholder image.
 
 ## Claude's queue (do each once the owner clears its blocker)
-1. Owner says Firestore is created and rules are published → back up `main`, then merge the Firebase-config PR. Then ask the owner to sign in on the live site, pick a username and add a test recipe, and to tick "Enforce HTTPS" on GitHub Pages and add `cookqueue.fyi`/`www.cookqueue.fyi` in Firebase's authorized domains if not done already.
+1. Firebase is merged (Sept 26). Confirm with the owner that sign-in works on the live site and that a test recipe can be published, and remind them to add `cookqueue.fyi`/`www.cookqueue.fyi` to Firebase's authorized domains and tick "Enforce HTTPS" on GitHub Pages if either is still outstanding.
 2. Whenever the owner pastes a Gemini batch: add it under `js/data/`, check every recipe passes validation (run the real `RecipeService.validate()` under Node, not just a by-eye check), and spot-check the `source` links.
 
 ## Goals
-- **Now:** the owner is setting up Firebase (`docs/firebase-setup.md`) and will paste the web config (not a secret). Grow the menu with batches of 25 from Gemini.
+- **Now:** Firebase is on. Grow the menu with more batches of 25 from Gemini, and generate photos for batch 01 (`js/data/batch-01.js`) in the Gemini app.
 - **Next:** ratings, reviews and comments. Guests can browse everything, but writing anything (recipes, reviews, comments, ratings) needs sign-in plus a username, enforced in `firestore.rules`, not only the UI.
 - **Later / undecided:** a guest "request a meal" QR code; Instacart shopping links (researched only: free dev key, ~30–40 day review, needs a free Cloudflare Worker); a Python script that uses the Gemini Batch API for images (~$0.45 per 25, so ask first; the owner currently makes images free in the Gemini app).
