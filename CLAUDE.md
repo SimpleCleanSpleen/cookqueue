@@ -31,6 +31,12 @@ Work on a branch and open a PR. The owner lets Claude merge, with these conditio
   - Community recipes: the Add, Edit and My Recipes pages, which can also take pasted Gemini JSON.
   - Barcode scanning. Barcodes are GTINs, with UPC-A padded to 13 digits. Lookup checks the Firestore `products` catalog first, then Open Food Facts. An unknown barcode is added to the catalog on publish, and the first entry wins.
 - **Placeholder:** ratings and reviews (community recipes show "New").
+- **Domain:** the owner bought `cookqueue.fyi` at Porkbun (Sept 26). It isn't connected yet.
+
+## Claude's queue (do each once the owner clears its blocker)
+1. Owner says Firestore is created and rules are published → back up `main`, then merge the Firebase-config PR (#7). Then ask the owner to sign in on the live site, pick a username and add a test recipe.
+2. Owner says the Porkbun DNS records are in and the domain is verified on GitHub → add a `CNAME` file containing `cookqueue.fyi`, switch the live URL in README.md, CLAUDE.md and `docs/firebase-setup.md` to `https://cookqueue.fyi/`, and merge. Remind the owner to tick "Enforce HTTPS" and to add both domains in Firebase.
+3. After that, whenever the owner pastes a Gemini batch: add it under `js/data/`, check every recipe passes validation, and spot-check the `source` links.
 
 ## Goals
 - **Now:** the owner is setting up Firebase (`docs/firebase-setup.md`) and will paste the web config (not a secret). Grow the menu with batches of 25 from Gemini.
