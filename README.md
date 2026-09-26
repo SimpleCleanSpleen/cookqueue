@@ -1,5 +1,7 @@
 # PrepDash (Meal Prep Generator)
 
+**▶ Live site: https://simplecleanspleen.github.io/prepdash/**
+
 ## Core Concept
 A delivery-app-style UI for generating optimized, zero-waste meal prep recipes tailored to strict dietary needs.
 
