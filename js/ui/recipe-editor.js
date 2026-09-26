@@ -317,7 +317,9 @@ CookQueue.RecipeEditor = (function () {
         <ul class="ed-checks">${show.join('')}</ul>
         <button type="button" class="btn btn-primary btn-block" data-ed="save" ${result.ok && canSave && !saving ? '' : 'disabled'}>
           ${saving ? 'Saving…' : isEdit ? 'Save changes' : 'Publish recipe'}</button>
-        ${canSave ? '' : '<p class="muted small">Sign in and pick a username to publish.</p>'}`,
+        ${canSave ? '' : '<p class="muted small">Sign in and pick a username to publish.</p>'}
+        ${result.ok ? '' : `<button type="button" class="btn btn-ghost btn-block btn-small" data-ed="copy-fix">🤖 Copy Fix Prompt</button>
+          <small class="field-hint" id="copy-fix-msg"></small>`}`,
     };
   }
 
@@ -486,8 +488,9 @@ CookQueue.RecipeEditor = (function () {
         case 'photo-remove': m.image.url = ''; rerender('photo'); break;
         case 'import': {
           const msg = $('#ed-json-msg');
+          const raw = $('#ed-json').value;
           try {
-            let data = JSON.parse($('#ed-json').value.trim().replace(/^```(json)?|```$/g, ''));
+            let data = JSON.parse(raw.trim().replace(/^```(json)?|```$/g, ''));
             if (Array.isArray(data)) data = data.flat()[0];
             if (!data || typeof data !== 'object') throw new Error('Expected one recipe object.');
             const keepPhoto = m.image.url;
@@ -499,6 +502,7 @@ CookQueue.RecipeEditor = (function () {
             $('#ed-json-msg').textContent = '✓ Form filled in. Check it over below.';
           } catch (err) {
             msg.textContent = `Couldn't read that: ${err.message}`;
+            CookQueue.Cloud?.logFailedImport?.({ rawInput: raw, errors: [err.message], context: opts.isEdit ? 'edit-import' : 'add-import' });
           }
           break;
         }
@@ -506,6 +510,17 @@ CookQueue.RecipeEditor = (function () {
           saving = true;
           refreshChecks();
           try { await opts.onSave(toRecipe(m)); } finally { saving = false; if (root.isConnected) refreshChecks(); }
+          return;
+        }
+        case 'copy-fix': {
+          const recipe = toRecipe(m);
+          let result;
+          try { result = CookQueue.RecipeService.validate(recipe); } catch (err) { result = { errors: [`Incomplete recipe: ${err.message}`] }; }
+          const prompt = CookQueue.PromptBuilder.buildFixPrompt({ recipe, errors: result.errors });
+          const ok = await CookQueue.util.copyText(prompt);
+          const msg = $('#copy-fix-msg');
+          if (msg) msg.textContent = ok ? '✓ Copied — paste it into ChatGPT, Gemini or Claude.' : "Couldn't auto-copy; select and copy the prompt from your browser's clipboard settings.";
+          CookQueue.Cloud?.logFailedImport?.({ rawInput: JSON.stringify(recipe), errors: result.errors, context: opts.isEdit ? 'edit-fix' : 'add-fix' });
           return;
         }
         default: return;

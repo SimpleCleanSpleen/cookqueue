@@ -15,6 +15,7 @@
   const Service = P.RecipeService;
   const Cloud = P.Cloud;
   const Editor = P.RecipeEditor;
+  const Helper = P.RecipeHelper;
 
   const $app = document.getElementById('app');
   const $ = (sel, root = document) => root.querySelector(sel);
@@ -504,29 +505,33 @@
             ≤ ${RULES.maxSodiumMg} mg sodium, ≤ ${RULES.maxFatPctOfCalories}% of calories from fat, ≤ ${RULES.maxIngredients} ingredients,
             ≤ ${RULES.maxActiveMinutes} min hands-on and approved appliances only.</p>
         </header>
-        <div class="editor-layout">
-          <form class="editor-form" novalidate></form>
-          <aside class="editor-side"><div class="panel" id="editor-check"></div></aside>
-        </div>
+        <div id="editor-body"></div>
       </article>`;
     const ed = state.editor = { hash, dirty: false, api: null };
-    ed.api = Editor.mount($app.querySelector('.editor'), {
-      recipe, isEdit,
-      canSave: () => signedIn() && !!username(),
-      onDirty: () => { ed.dirty = true; },
-      onSave: async r => {
-        try {
-          const newId = await Service.save(r, isEdit ? id : null);
-          ed.dirty = false;
-          await reloadRecipes();
-          location.hash = `#/recipe/${newId}`;
-          toast(isEdit ? `✓ Saved <b>${esc(r.name)}</b>` : `🎉 Published <b>${esc(r.name)}</b>`);
-        } catch (err) {
-          console.error(err);
-          toast(`⚠ ${esc(friendlyError(err))}`);
-        }
-      },
-    });
+    const canSave = () => signedIn() && !!username();
+    const onSave = async r => {
+      try {
+        const newId = await Service.save(r, isEdit ? id : null);
+        ed.dirty = false;
+        await reloadRecipes();
+        location.hash = `#/recipe/${newId}`;
+        toast(isEdit ? `✓ Saved <b>${esc(r.name)}</b>` : `🎉 Published <b>${esc(r.name)}</b>`);
+      } catch (err) {
+        console.error(err);
+        toast(`⚠ ${esc(friendlyError(err))}`);
+      }
+    };
+    const body = $app.querySelector('#editor-body');
+    if (isEdit) {
+      body.innerHTML = `<div class="editor-layout"><form class="editor-form" novalidate></form><aside class="editor-side"><div class="panel" id="editor-check"></div></aside></div>`;
+      ed.api = Editor.mount(body, { recipe, isEdit, canSave, onDirty: () => { ed.dirty = true; }, onSave });
+    } else {
+      ed.api = Helper.mountAddPage(body, {
+        canSave, onSave, toast,
+        onDirty: () => { ed.dirty = true; },
+        setDirty: v => { ed.dirty = v; },
+      });
+    }
   }
 
   function friendlyError(err) {

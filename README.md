@@ -23,7 +23,8 @@ You browse a "menu," open a recipe the way you'd open a restaurant page, pick yo
 
 ### Community recipes (sign in with Google)
 Once Firebase is switched on (see [docs/firebase-setup.md](docs/firebase-setup.md)), anyone can sign in with Google, pick a username and publish their own recipes:
-- **➕ Add your recipe:** a form for every part of a recipe (ingredients, packages, steps and what each step waits on), with an optional photo and a box to paste Gemini JSON. A live **rule check** has to be all green before **Publish** works.
+- **➕ Add your recipe:** a form for every part of a recipe (ingredients, packages, steps and what each step waits on), with an optional photo and a box to paste Gemini JSON. A live **rule check** has to be all green before **Publish** works. Whenever that check fails, a **🤖 Copy Fix Prompt** button copies the errors plus your recipe's JSON so you can hand it to any AI chat for a fix.
+- **Recipe Helper:** two tabs on the Add page for going from an idea to valid JSON without writing it by hand. **One recipe** asks 3 quick questions and builds a copy-paste prompt for a free AI chat (ChatGPT, Gemini, Claude — CookQueue never calls one itself). **Several at once** takes a messy ramble about a few recipes, builds a prompt asking the AI to interview you until it has enough, then lets you paste back a JSON array: recipes that pass publish immediately, recipes that fail land in a review queue you can fix with another AI round-trip or by editing manually.
 - **Shared by @username** on each community recipe. Only the owner sees ✏️ Edit and 🗑 Delete, and the Firestore security rules enforce that on the server as well.
 - **My recipes** (account menu, top right) lists everything you've shared, including any that are hidden because they break a rule.
 - A **Community** category on the home page. Community recipes show "New" until real ratings arrive.
@@ -258,6 +259,7 @@ Firestore layout (rules in `firestore.rules`):
 | `usernames` | lower-case username | `uid` | the user claiming it (keeps names unique) |
 | `recipes` | `<slug>-<5 random chars>` | the recipe schema above (no `id`/`rating`) + `ownerUid`, `createdAt`, `updatedAt` | owner only; owner can't be changed |
 | `products` | normalized barcode (GTIN) | `name`, `brand`, `size`, `unit`, `label`, `group`, `source` (`openfoodfacts`/`user`), `createdBy`, `updatedAt` | anyone with a username adds; first entry wins; only its creator can correct it; never deleted |
+| `failed_recipe_imports` | auto | `ownerUid`, `createdAt`, `rawInput` (capped), `errors`, `context` | write-only debug log for Recipe Helper; anyone with a username adds one for themselves; nobody can read, edit or delete it from the app |
 
 The author's username is looked up from `users/{ownerUid}` when recipes load, so renaming updates every recipe. Photos are shrunk in the browser (≤ 1000 px, about 260 KB max) and stored in `image.url` as a `data:` URL, because Cloud Storage needs the paid Blaze plan.
 
