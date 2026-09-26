@@ -1,19 +1,15 @@
 rules_version = '2';
 
-// PrepDash — Firestore security rules.
+// CookQueue Firestore security rules: the real protection for the data.
+// To publish, paste this whole file into Firebase console → Firestore → Rules.
 //
-// These rules are what actually protect the data (the website code can be
-// changed by anyone in their own browser; these can't). Publish them in
-// Firebase console → Firestore Database → Rules: paste this whole file and
-// click Publish. Re-publish whenever this file changes.
-//
-//  - Anyone can read recipes and usernames (the menu is public).
-//  - Only a signed-in user can create a recipe, and it's stamped as theirs.
-//  - Only the owner can edit or delete a recipe, and nobody can change its owner.
+//  - Anyone can read recipes, usernames and the barcode catalog.
+//  - Signed-in users with a username can create recipes (stamped as theirs)
+//    and add new barcodes.
+//  - Only the owner edits or deletes a recipe; the owner can't be changed.
 //  - Usernames are unique (case-insensitive) and only you can set yours.
-//  - Ratings can't be written yet (they arrive with reviews later).
-//  - Barcode catalog: anyone can read; users with a username can add a new
-//    barcode; only whoever added an entry can correct it; nobody deletes.
+//  - Only whoever added a barcode can correct it; nobody deletes one.
+//  - Ratings can't be written until reviews ship.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -28,8 +24,7 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if true;
 
-      // Create or rename. The matching usernames/{lower} doc must point back
-      // at this user once the write finishes (setUsername writes both at once).
+      // Create or rename; usernames/{lower} must point back at this user.
       allow create, update: if signedIn() && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(['username', 'usernameLower', 'updatedAt'])
         && request.resource.data.username is string
@@ -60,8 +55,7 @@ service cloud.firestore {
     match /recipes/{recipeId} {
       allow read: if true;
 
-      // Light shape checks. The site runs the full PrepDash rule check before
-      // saving and hides any recipe that fails it.
+      // Shape checks only; the site runs the full recipe rules.
       function validRecipe() {
         let d = request.resource.data;
         return recipeId.matches('^[a-z0-9-]{3,80}$')
