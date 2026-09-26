@@ -73,6 +73,7 @@ PrepDash.config = {
   /** Home-screen category rail. `match` receives a recipe. */
   CATEGORIES: [
     { id: 'all',           label: 'All',          emoji: '🍽️', match: () => true },
+    { id: 'community',     label: 'Community',    emoji: '👥', match: r => !!r.community },
     { id: 'mexican',       label: 'Mexican',      emoji: '🌮', match: r => r.tags.includes('mexican') },
     { id: 'asian',         label: 'Asian',        emoji: '🥢', match: r => r.tags.includes('asian') },
     { id: 'mediterranean', label: 'Mediterranean', emoji: '🫒', match: r => r.tags.includes('mediterranean') },

@@ -1,6 +1,7 @@
 /**
  * PrepDash — application controller.
- * Hash router (#/ and #/recipe/:id), state, rendering and event delegation.
+ * Hash router (#/, #/recipe/:id, #/add, #/edit/:id, #/mine), state,
+ * rendering and event delegation.
  */
 (function () {
   const P = window.PrepDash;
@@ -12,6 +13,8 @@
   const ui = P.ui;
   const Timeline = P.Timeline;
   const Service = P.RecipeService;
+  const Cloud = P.Cloud;
+  const Editor = P.RecipeEditor;
 
   const $app = document.getElementById('app');
   const $ = (sel, root = document) => root.querySelector(sel);
@@ -27,7 +30,7 @@
   ];
 
   const SORTS = {
-    recommended: (a, b) => b.rating * Math.log(b.ratingCount) - a.rating * Math.log(a.ratingCount),
+    recommended: (a, b) => score(b) - score(a),
     protein:     (a, b) => b.nutritionPerServing.protein - a.nutritionPerServing.protein,
     active:      (a, b) => meta(a).active - meta(b).active,
     calories:    (a, b) => a.nutritionPerServing.calories - b.nutritionPerServing.calories,
@@ -40,6 +43,8 @@
     views: {},          // recipeId → { servings, cooks, overrides }
     plan: loadPlan(),   // [{ recipeId, servings }]
     current: null,      // recipe currently open
+    session: Cloud.session, // { ready, user, profile } from Firebase
+    editor: null,       // { hash, dirty, api } while the recipe editor is open
   };
 
   /* ---------------------------------------------------------- helpers */
@@ -57,6 +62,20 @@
   }
 
   const byId = id => state.recipes.find(r => r.id === id);
+
+  /** Placeholder ratings weigh count; new community recipes (no ratings yet) sort last. */
+  const score = r => (r.rating || 0) * Math.log((r.ratingCount || 0) + 1);
+
+  const signedIn = () => !!state.session.user;
+  const username = () => state.session.profile?.username || '';
+
+  /** Reload every recipe (after a save or delete) and forget cached timings. */
+  async function reloadRecipes() {
+    state.recipes = await Service.list();
+    Object.keys(metaCache).forEach(k => delete metaCache[k]);
+    state.plan = state.plan.filter(p => byId(p.recipeId));
+    savePlan();
+  }
 
   /** High protein = ≥ 40 g, or ≥ 30% of calories from protein (fair to snacks & desserts). */
   const isHighProtein = n => n.protein >= RULES.minProteinPreferred || P.nutrition.macroSplit(n).protein >= 30;
@@ -83,13 +102,24 @@
 
   function route() {
     const hash = location.hash || '#/';
-    const m = hash.match(/^#\/recipe\/([\w-]+)/);
+    if (state.editor?.dirty && hash !== state.editor.hash) {
+      if (!confirm('Leave without saving? Your changes to this recipe will be lost.')) {
+        history.replaceState(null, '', state.editor.hash);
+        return;
+      }
+    }
+    state.editor = null;
     closeDrawer();
-    if (m) {
-      const r = byId(m[1]);
+    closeAccountMenu();
+    const m = hash.match(/^#\/(recipe|edit)\/([\w-]+)/);
+    if (m && m[1] === 'recipe') {
+      const r = byId(m[2]);
       if (r) return renderRecipe(r);
     }
     state.current = null;
+    if (m && m[1] === 'edit') return renderEditor(m[2]);
+    if (hash === '#/add') return renderEditor(null);
+    if (hash === '#/mine') return renderMine();
     renderHome();
   }
 
@@ -120,6 +150,7 @@
           <div class="promo-actions">
             <button class="btn btn-primary" data-action="open-generator">✨ Generate a recipe</button>
             <button class="btn btn-ghost" data-action="scroll-menu">Browse menu</button>
+            ${Cloud.enabled ? '<a class="btn btn-ghost" href="#/add">➕ Add your recipe</a>' : ''}
           </div>
         </div>
         <div class="promo-art" aria-hidden="true">
@@ -130,7 +161,7 @@
       </section>
 
       <nav class="category-rail" aria-label="Categories">
-        ${CATEGORIES.map(c => `
+        ${CATEGORIES.filter(c => c.id !== 'community' || Cloud.enabled).map(c => `
           <button class="category ${f.category === c.id ? 'is-on' : ''}" data-action="category" data-id="${c.id}" aria-pressed="${f.category === c.id}">
             <span class="category-icon" aria-hidden="true">${c.emoji}</span>
             <span>${esc(c.label)}</span>
@@ -201,8 +232,15 @@
         <header class="recipe-head">
           <div class="recipe-title-row">
             <h1>${esc(r.name)}</h1>
-            <span class="rating rating--lg">★ ${r.rating.toFixed(1)} <small>(${fmtNum(r.ratingCount)})</small></span>
+            ${ui.rating(r, true)}
           </div>
+          ${r.community ? `
+          <div class="byline">
+            <span>Shared by <b>@${esc(r.community.author)}</b></span>
+            ${Cloud.isMine(r) ? `
+              <a class="btn btn-small btn-ghost" href="#/edit/${esc(r.id)}">✏️ Edit</a>
+              <button class="btn btn-small btn-ghost btn-danger" data-action="recipe-delete" data-id="${esc(r.id)}">🗑 Delete</button>` : ''}
+          </div>` : ''}
           <p class="tagline">${esc(r.tagline)}</p>
           <div class="tag-row">${ui.spiceMeter(r.spiceLevel)}${ui.tagChips(r.tags)}</div>
           <p class="description">${esc(r.description)}</p>
@@ -427,6 +465,221 @@
     requestAnimationFrame(frame);
   }
 
+  /* ---------------------------------------------------------- community: add / edit / mine */
+
+  function signInCard(title, text) {
+    if (!Cloud.enabled) {
+      return `<div class="empty"><span aria-hidden="true">🔌</span><h3>Sign-in isn't switched on yet</h3>
+        <p>Community recipes need Firebase. See js/firebase-config.js.</p><a class="btn btn-ghost" href="#/">Back to the menu</a></div>`;
+    }
+    if (!state.session.ready) return `<div class="empty"><span aria-hidden="true">⏳</span><h3>Checking your sign-in…</h3></div>`;
+    return `<div class="empty"><span aria-hidden="true">👋</span><h3>${esc(title)}</h3><p>${esc(text)}</p>
+      <button class="btn btn-primary" data-action="sign-in">Sign in with Google</button></div>`;
+  }
+
+  function renderEditor(id) {
+    const isEdit = !!id;
+    document.title = `${isEdit ? 'Edit recipe' : 'Add a recipe'} · PrepDash`;
+    window.scrollTo(0, 0);
+    if (!signedIn()) {
+      $app.innerHTML = signInCard('Sign in to share a recipe', 'Recipes you add show your username, and only you can edit or delete them.');
+      return;
+    }
+    let recipe = null;
+    if (isEdit) {
+      recipe = byId(id) || Service.rejected.find(x => x.id === id)?.recipe;
+      if (!recipe || !Cloud.isMine(recipe)) {
+        $app.innerHTML = `<div class="empty"><span aria-hidden="true">🔒</span><h3>You can only edit your own recipes</h3>
+          <p>This recipe doesn't exist or belongs to someone else.</p><a class="btn btn-ghost" href="#/mine">My recipes</a></div>`;
+        return;
+      }
+    }
+    const hash = location.hash;
+    $app.innerHTML = `
+      <article class="editor">
+        <a class="back-link" href="${isEdit ? `#/recipe/${esc(id)}` : '#/mine'}">← ${isEdit ? 'Back to recipe' : 'My recipes'}</a>
+        <header class="editor-head">
+          <h1>${isEdit ? `Edit “${esc(recipe.name)}”` : 'Add a recipe'}</h1>
+          <p class="muted">Posting as <b>@${esc(username() || '…')}</b>. Every recipe has to pass the PrepDash rules before it can be published:
+            ≤ ${RULES.maxSodiumMg} mg sodium, ≤ ${RULES.maxFatPctOfCalories}% of calories from fat, ≤ ${RULES.maxIngredients} ingredients,
+            ≤ ${RULES.maxActiveMinutes} min hands-on and approved appliances only.</p>
+        </header>
+        <div class="editor-layout">
+          <form class="editor-form" novalidate></form>
+          <aside class="editor-side"><div class="panel" id="editor-check"></div></aside>
+        </div>
+      </article>`;
+    const ed = state.editor = { hash, dirty: false, api: null };
+    ed.api = Editor.mount($app.querySelector('.editor'), {
+      recipe, isEdit,
+      canSave: () => signedIn() && !!username(),
+      onDirty: () => { ed.dirty = true; },
+      onSave: async r => {
+        try {
+          const newId = await Service.save(r, isEdit ? id : null);
+          ed.dirty = false;
+          await reloadRecipes();
+          location.hash = `#/recipe/${newId}`;
+          toast(isEdit ? `✓ Saved <b>${esc(r.name)}</b>` : `🎉 Published <b>${esc(r.name)}</b>`);
+        } catch (err) {
+          console.error(err);
+          toast(`⚠ ${esc(friendlyError(err))}`);
+        }
+      },
+    });
+  }
+
+  function friendlyError(err) {
+    if (err?.code === 'permission-denied') return 'Not allowed. You can only change your own recipes.';
+    if (err?.code === 'unavailable') return 'You seem to be offline. Try again in a moment.';
+    return err?.message || 'Something went wrong.';
+  }
+
+  function renderMine() {
+    document.title = 'My recipes · PrepDash';
+    if (!signedIn()) {
+      $app.innerHTML = signInCard('Sign in to see your recipes', 'Add, edit and delete the recipes you share.');
+      return;
+    }
+    const uid = state.session.user.uid;
+    const mine = state.recipes.filter(r => r.community?.ownerUid === uid);
+    const hidden = Service.rejected.filter(x => x.recipe?.community?.ownerUid === uid);
+    $app.innerHTML = `
+      <section class="section mine">
+        <div class="section-head">
+          <div>
+            <h1>My recipes</h1>
+            <p class="muted">Signed in as <b>@${esc(username() || '…')}</b> (${esc(state.session.user.email || '')}).
+              <button class="linkish" data-action="username-open">Change username</button></p>
+          </div>
+          <a class="btn btn-primary" href="#/add">➕ Add a recipe</a>
+        </div>
+        ${hidden.length ? `<div class="notice" role="status">⚠ ${hidden.length} of your recipes ${hidden.length > 1 ? 'are' : 'is'} hidden from the menu because ${hidden.length > 1 ? 'they break' : 'it breaks'} a rule:
+          ${hidden.map(x => `<b>${esc(x.name)}</b> (${esc(x.errors[0])}) <a href="#/edit/${esc(x.id)}">Fix it</a>`).join('; ')}</div>` : ''}
+        ${mine.length ? `
+        <ul class="mine-list">
+          ${mine.map(r => `
+            <li class="mine-item">
+              <img ${imgAttrs(r)}>
+              <div><a href="#/recipe/${esc(r.id)}">${esc(r.name)}</a>
+                <span class="muted small">${esc(RULES.calories[r.category]?.label || r.category)} · ${fmtNum(r.nutritionPerServing.calories)} kcal${r.community.updatedAt ? ` · updated ${new Date(r.community.updatedAt).toLocaleDateString()}` : ''}</span></div>
+              <div class="mine-tools">
+                <a class="btn btn-small btn-ghost" href="#/edit/${esc(r.id)}">✏️ Edit</a>
+                <button class="btn btn-small btn-ghost btn-danger" data-action="recipe-delete" data-id="${esc(r.id)}">🗑 Delete</button>
+              </div>
+            </li>`).join('')}
+        </ul>` : hidden.length ? '' : `
+        <div class="empty"><span aria-hidden="true">🥡</span><h3>You haven't shared a recipe yet</h3>
+          <p>Add one and it appears on the menu for everyone, with your username on it.</p></div>`}
+      </section>`;
+    window.scrollTo(0, 0);
+  }
+
+  async function deleteRecipe(id) {
+    const r = byId(id) || Service.rejected.find(x => x.id === id);
+    if (!confirm(`Delete “${r?.name || 'this recipe'}”? This can't be undone.`)) return;
+    try {
+      await Service.remove(id);
+      await reloadRecipes();
+      toast(`🗑 Deleted <b>${esc(r?.name || 'recipe')}</b>`);
+      if (location.hash === '#/mine') renderMine(); else location.hash = '#/mine';
+    } catch (err) {
+      console.error(err);
+      toast(`⚠ ${esc(friendlyError(err))}`);
+    }
+  }
+
+  /* ---------------------------------------------------------- account */
+
+  function renderAccount() {
+    const el = $('#account');
+    if (!el) return;
+    if (!Cloud.enabled) { el.innerHTML = ''; return; }
+    const { ready, user } = state.session;
+    if (!ready) { el.innerHTML = ''; return; }
+    if (!user) {
+      el.innerHTML = `<button class="account-btn" data-action="sign-in"><span aria-hidden="true">👤</span><span class="account-label">Sign in</span></button>`;
+      return;
+    }
+    const name = username();
+    el.innerHTML = `
+      <button class="account-btn is-in" data-action="account-menu" aria-haspopup="menu" aria-expanded="false">
+        ${user.photoURL ? `<img src="${esc(user.photoURL)}" alt="" referrerpolicy="no-referrer">` : '<span aria-hidden="true">👤</span>'}
+        <span class="account-label">${name ? `@${esc(name)}` : 'Account'}</span>
+      </button>
+      <div class="account-menu" role="menu" hidden>
+        <a role="menuitem" href="#/add">➕ Add a recipe</a>
+        <a role="menuitem" href="#/mine">📒 My recipes</a>
+        <button role="menuitem" data-action="username-open">✏️ Change username</button>
+        <button role="menuitem" data-action="sign-out">↩ Sign out</button>
+      </div>`;
+  }
+
+  function closeAccountMenu() {
+    const menu = $('.account-menu');
+    if (menu) { menu.hidden = true; $('[data-action="account-menu"]')?.setAttribute('aria-expanded', 'false'); }
+  }
+
+  function openUsername({ required = false } = {}) {
+    const root = $('#modal-root');
+    const current = username();
+    root.innerHTML = `
+      <div class="modal-backdrop" ${required ? '' : 'data-action="modal-close"'}></div>
+      <div class="modal modal--small" role="dialog" aria-modal="true" aria-labelledby="un-title">
+        ${required ? '' : '<button class="icon-btn modal-x" data-action="modal-close" aria-label="Close">✕</button>'}
+        <form id="username-form">
+          <h2 id="un-title">${current ? 'Change your username' : 'Pick a username'}</h2>
+          <p class="muted">It's shown on every recipe you share. Your Google name and email stay private.</p>
+          <label class="field"><span class="field-label">Username</span>
+            <input name="username" value="${esc(current)}" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="20" required placeholder="e.g. jeremy_cooks">
+            <small class="field-hint" id="un-msg">3–20 letters, numbers or underscores.</small>
+          </label>
+          <button class="btn btn-primary btn-block" type="submit">Save username</button>
+          ${required ? '<button class="btn btn-ghost btn-block" type="button" data-action="sign-out">Cancel and sign out</button>' : ''}
+        </form>
+      </div>`;
+    document.body.classList.add('modal-open');
+    const form = $('#username-form');
+    form.username.focus();
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const msg = $('#un-msg');
+      const value = form.username.value.trim();
+      const problem = Cloud.checkUsername(value);
+      if (problem) { msg.textContent = problem; msg.classList.add('warn'); return; }
+      form.querySelector('[type="submit"]').disabled = true;
+      msg.classList.remove('warn');
+      msg.textContent = 'Saving…';
+      try {
+        await Cloud.setUsername(value);
+        closeModal();
+        toast(`👋 You're <b>@${esc(value)}</b>`);
+      } catch (err) {
+        console.error(err);
+        msg.textContent = friendlyError(err);
+        msg.classList.add('warn');
+        form.querySelector('[type="submit"]').disabled = false;
+      }
+    });
+  }
+
+  let lastUid;
+  function onSession(session) {
+    state.session = session;
+    renderAccount();
+    if (session.user && session.ready && !session.profile && !$('#username-form')) openUsername({ required: true });
+    if (!session.user && $('#username-form')) closeModal();
+    const uid = session.user?.uid || null;
+    const userChanged = uid !== lastUid;
+    lastUid = uid;
+    if (state.loading) return;
+    // Re-render pages whose content depends on who's signed in (but never wipe an open editor).
+    if (state.editor?.api) { state.editor.api.refresh(); if (!userChanged) return; }
+    if (userChanged && state.editor?.dirty) return;
+    const hash = location.hash || '#/';
+    if (/^#\/(add|mine|edit\/|recipe\/)/.test(hash)) { state.editor = null; route(); }
+  }
+
   /* ---------------------------------------------------------- prep plan drawer */
 
   function updatePlanCount() {
@@ -639,10 +892,28 @@
     'plan-remove':    el => { state.plan = state.plan.filter(p => p.recipeId !== el.dataset.id); savePlan(); renderDrawer(); if (state.current) updateRecipe(); },
     'plan-clear':     () => { state.plan = []; savePlan(); renderDrawer(); if (state.current) updateRecipe(); },
     'plan-open':      openDrawer,
+    'sign-in':        async () => {
+      try { await Cloud.signIn(); } catch (err) { console.error(err); toast(`⚠ ${esc(friendlyError(err))}`); }
+    },
+    'sign-out':       async () => {
+      closeModal(); closeAccountMenu();
+      if (state.editor?.dirty && !confirm('Sign out without saving your recipe?')) return;
+      if (state.editor) state.editor.dirty = false;
+      await Cloud.signOut();
+      toast('Signed out');
+    },
+    'account-menu':   el => {
+      const menu = $('.account-menu');
+      menu.hidden = !menu.hidden;
+      el.setAttribute('aria-expanded', String(!menu.hidden));
+    },
+    'username-open':  () => { closeAccountMenu(); openUsername(); },
+    'recipe-delete':  el => deleteRecipe(el.dataset.id),
     'plan-close':     closeDrawer,
   };
 
   document.addEventListener('click', e => {
+    if (!e.target.closest('#account')) closeAccountMenu();
     const el = e.target.closest('[data-action]');
     if (!el || el.tagName === 'SELECT') return;
     const fn = actions[el.dataset.action];
@@ -654,7 +925,10 @@
   });
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeModal(); closeDrawer(); }
+    if (e.key === 'Escape') {
+      if (!$('#username-form') || username()) closeModal();
+      closeDrawer(); closeAccountMenu();
+    }
   });
 
   // Highlight a task in both the chart and the step list on hover.
@@ -666,16 +940,20 @@
 
   $('#search').addEventListener('input', e => {
     state.filters.search = e.target.value;
-    if (state.current) { location.hash = '#/'; return; }
+    if ((location.hash || '#/') !== '#/') { location.hash = '#/'; return; }
     renderHome();
   });
 
   window.addEventListener('hashchange', route);
+  window.addEventListener('beforeunload', e => {
+    if (state.editor?.dirty) { e.preventDefault(); e.returnValue = ''; }
+  });
 
   /* ---------------------------------------------------------- boot */
 
   (async function init() {
     updatePlanCount();
+    Cloud.onChange(onSession);
     renderHome(); // skeleton
     state.recipes = await Service.list();
     state.loading = false;
