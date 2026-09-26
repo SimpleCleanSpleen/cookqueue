@@ -1,6 +1,6 @@
 # CookQueue (Meal Prep Generator)
 
-**▶ Live site: https://simplecleanspleen.github.io/prepdash/** *(renaming to `.../cookqueue/` once the GitHub repo is renamed — see `CLAUDE.md`)*
+**▶ Live site: https://simplecleanspleen.github.io/cookqueue/**
 
 ## Core Concept
 A delivery-app-style UI for generating optimized, zero-waste meal prep recipes tailored to strict dietary needs.
