@@ -84,6 +84,14 @@ PrepDash.ui = (function () {
     return `<span class="avatar ${size}" style="--c:${c.color}" title="${c.name}">${i + 1}</span>`;
   }
 
+  /** Star rating, or a "New" chip for community recipes that have no ratings yet. */
+  function rating(r, large = false) {
+    if (!r.ratingCount) return `<span class="rating rating--new ${large ? 'rating--lg' : ''}">New</span>`;
+    return large
+      ? `<span class="rating rating--lg">★ ${r.rating.toFixed(1)} <small>(${fmtNum(r.ratingCount)})</small></span>`
+      : `<span class="rating">★ ${r.rating.toFixed(1)}</span>`;
+  }
+
   /** Store-front recipe card. `meta` = { active, total } precomputed. */
   function recipeCard(r, meta) {
     const n = r.nutritionPerServing;
@@ -97,9 +105,10 @@ PrepDash.ui = (function () {
         <div class="card-body">
           <div class="card-title-row">
             <h3 class="card-title">${esc(r.name)}</h3>
-            <span class="rating">★ ${r.rating.toFixed(1)}</span>
+            ${rating(r)}
           </div>
           <p class="card-meta">${esc(titleCase(r.cuisine))} · ${fmtMinutes(meta.total)} total · <b style="color:${MACRO_COLORS.protein}">${n.protein}g protein</b></p>
+          ${r.community ? `<p class="card-author">by @${esc(r.community.author)}</p>` : ''}
           <div class="tag-row">${spiceMeter(r.spiceLevel, { compact: true })}${tagChips(r.tags.slice(0, 3))}</div>
         </div>
       </a>`;
@@ -111,5 +120,5 @@ PrepDash.ui = (function () {
       <div class="card-body"><div class="line shimmer"></div><div class="line short shimmer"></div></div></div>`).join('');
   }
 
-  return { spiceMeter, tagChips, applianceChips, kcalPill, nutritionBadge, timeBadge, cookAvatar, recipeCard, skeletonCards };
+  return { spiceMeter, tagChips, applianceChips, kcalPill, nutritionBadge, timeBadge, cookAvatar, rating, recipeCard, skeletonCards };
 })();

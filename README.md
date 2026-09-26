@@ -21,6 +21,15 @@ You browse a "menu," open a recipe the way you'd open a restaurant page, pick yo
 | Turkey & Veggie Egg White Bites | snack | 150 | 28 g | 25 min | 8, 16 |
 | Mexican Hot Chocolate Protein Creami | dessert | 347 | 40 g | 31 min | 8, 16 (2 servings per pint) |
 
+### Community recipes (sign in with Google)
+Once Firebase is switched on (see [docs/firebase-setup.md](docs/firebase-setup.md)), anyone can sign in with Google, pick a username and publish their own recipes:
+- **➕ Add your recipe:** a form for every part of a recipe (ingredients, packages, steps and what each step waits on), with an optional photo and a box to paste Gemini JSON. A live **rule check** has to be all green before **Publish** works.
+- **Shared by @username** on each community recipe. Only the owner sees ✏️ Edit and 🗑 Delete, and the Firestore security rules enforce that on the server as well.
+- **My recipes** (account menu, top right) lists everything you've shared, including any that are hidden because they break a rule.
+- A **Community** category on the home page. Community recipes show "New" until real ratings arrive.
+
+Until Firebase is configured, none of this appears and the site works exactly as before.
+
 ### Also included
 - **Rule validator:** Every recipe is checked against the dietary, appliance and effort rules. The recipe page shows "✓ Meets all PrepDash rules" with the full checklist.
 - **Prep Plan (cart):** Add several recipes and get one combined shopping list, with packages summed across recipes and open containers flagged. It's saved in `localStorage`.
@@ -53,21 +62,28 @@ index.html                    Entry point: top bar, <main id="app">, drawer, mod
 css/styles.css                All styling (design tokens in :root, responsive rules at the bottom)
 js/
   config.js                   Business rules, approved appliances, color scales, categories
+  firebase-config.js          Firebase web config (null = sign-in and community recipes switched off)
   data/mock-recipes.js        Starter menu (5 hand-written recipes) as a "batch"
   data/batch-template.js      Copy this to add a batch of recipes (e.g. from Gemini)
 images/                       Recipe photos, named <recipe-id>.webp
 docs/gemini-recipe-prompt.md  The prompt that makes Gemini write recipes in PrepDash format
+docs/firebase-setup.md        Step-by-step: create the Firebase project, turn on Google sign-in, publish rules
+firestore.rules               Firestore security rules (who can read/write what); paste into the console
+firebase.json                 Emulator ports for local testing
+tests/                        Dev-only Node tests: security rules + end-to-end, against the Firebase emulators
   lib/utils.js                Formatting (fractions, units, minutes), escaping
   lib/nutrition.js            Calorie → color interpolation, macro math
   lib/scaler.js               Optimal-batch / zero-waste calculator
   lib/scheduler.js            Parallel-workflow scheduler (critical-path list scheduling)
-  services/recipe-service.js  Data access layer: list(), get(), generate(), validate()
+  services/cloud-service.js   Firebase Auth + Firestore (sign-in, usernames, community recipe CRUD)
+  services/recipe-service.js  Data access layer: list(), get(), save(), remove(), generate(), validate()
   ui/components.js            Presentational HTML builders (cards, badges, chips)
   ui/timeline.js              Gantt renderer + step list
+  ui/recipe-editor.js         Add / edit recipe form with live rule check
   app.js                      Router, state, page rendering, event handling
 ```
 
-Scripts are plain, ordered `<script>` tags that share a `window.PrepDash` namespace, so the app also works when opened from `file://`. ES modules would need a server. Load order: config → data → libs → service → UI → app.
+Scripts are plain, ordered `<script>` tags that share a `window.PrepDash` namespace, so the app also works when opened from `file://`. ES modules would need a server. Load order: config → data → libs → service → UI → app. The Firebase SDK is loaded from gstatic.com by `cloud-service.js` only when a config is set, and sign-in needs `http(s)://` (use `python3 -m http.server`, not `file://`).
 
 ### Data flow
 
@@ -226,7 +242,17 @@ Recipes are **pure JSON**: no functions and no computed fields. A generator only
 3. Open the site. Any recipe that breaks a rule is hidden and listed in a banner on the home page.
 4. Generate the images from the prompts and save them as `images/<recipe-id>.webp`.
 
-**Later: people add recipes themselves.** This needs a shared database and logins. The planned setup is Firebase Auth plus a Firestore `recipes` collection, with an "Add recipe" form that runs the same `RecipeService.validate()` before saving. `RecipeService.list()` would then read from Firestore as well as the batch files. Because the site already reads recipes only through `RecipeService`, the UI won't need to change.
+**People add recipes themselves (Firebase).** Signed-in users publish through the **➕ Add your recipe** form, which runs the same `RecipeService.validate()` before saving. `RecipeService.list()` reads the batch files plus the Firestore `recipes` collection, and hides any recipe that fails the rules.
+
+Firestore layout (rules in `firestore.rules`):
+
+| Collection | Doc id | Fields | Who can write |
+|---|---|---|---|
+| `users` | Firebase uid | `username`, `usernameLower`, `updatedAt` | that user |
+| `usernames` | lower-case username | `uid` | the user claiming it (keeps names unique) |
+| `recipes` | `<slug>-<5 random chars>` | the recipe schema above (no `id`/`rating`) + `ownerUid`, `createdAt`, `updatedAt` | owner only; owner can't be changed |
+
+The author's username is looked up from `users/{ownerUid}` when recipes load, so renaming updates every recipe. Photos are shrunk in the browser (≤ 1000 px, about 260 KB max) and stored in `image.url` as a `data:` URL, because Cloud Storage needs the paid Blaze plan.
 
 ## Hosting options (free tiers)
 
@@ -253,8 +279,7 @@ Firebase Spark plan database/auth limits: Firestore 1 GiB stored, 50K reads / 20
 | Brand color, fonts, radii | CSS variables in `:root` of `styles.css` |
 
 ## Roadmap ideas
-- "Add recipe" form backed by Firestore (see **Adding recipes**)
-- Firebase logins so you (and later guests) can rate & review recipes
+- Ratings & reviews for signed-in users (placeholders for now)
 - Guest mode: a QR code that opens a "request a meal" page, with requests saved to Firestore for the host to approve
 - Real food photography or AI-generated images
 - Split appliance runs automatically when a batch exceeds capacity (e.g. two Instant Pot loads)

@@ -11,3 +11,9 @@ tmp/
 # Firebase (later)
 .firebase/
 firebase-debug.log
+
+# Dev-only Firebase tests
+tests/node_modules/
+tests/screenshots/
+tests/package-lock.json
+*-debug.log

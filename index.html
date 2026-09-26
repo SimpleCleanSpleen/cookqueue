@@ -34,6 +34,8 @@
         <input id="search" type="search" placeholder="Search recipes, cuisines, ingredients" autocomplete="off">
       </label>
 
+      <div id="account" class="account"></div>
+
       <button class="plan-btn" type="button" data-action="plan-open" aria-label="Open prep plan">
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.5L21 8H6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="20" r="1.4" fill="currentColor"/><circle cx="17" cy="20" r="1.4" fill="currentColor"/></svg>
         <span class="plan-btn-label">Prep Plan</span>
@@ -46,7 +48,7 @@
 
   <footer class="footer container">
     <span>🍱 PrepDash</span>
-    <span class="muted">Low salt · low fat · high protein · zero waste. Images are placeholders.</span>
+    <span class="muted">Low salt · low fat · high protein · zero waste. Starter images are placeholders.</span>
   </footer>
 
   <!-- Prep Plan drawer (cart) -->
@@ -64,6 +66,7 @@
 
   <!-- Load order matters: config → data → libs → service → UI → app -->
   <script src="js/config.js"></script>
+  <script src="js/firebase-config.js"></script>
   <script src="js/data/mock-recipes.js"></script>
   <!-- Add Gemini batches here (copy js/data/batch-template.js), e.g.: -->
   <!-- <script src="js/data/batch-01.js"></script> -->
@@ -71,9 +74,11 @@
   <script src="js/lib/nutrition.js"></script>
   <script src="js/lib/scaler.js"></script>
   <script src="js/lib/scheduler.js"></script>
+  <script src="js/services/cloud-service.js"></script>
   <script src="js/services/recipe-service.js"></script>
   <script src="js/ui/components.js"></script>
   <script src="js/ui/timeline.js"></script>
+  <script src="js/ui/recipe-editor.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
