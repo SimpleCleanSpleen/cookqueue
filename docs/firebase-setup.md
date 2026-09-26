@@ -40,9 +40,11 @@ Don't click "Upgrade" or pick the Blaze plan anywhere. Spark is the default.
 1. Left menu: **Build → Authentication → Get started**.
 2. **Sign-in method** tab → **Google** → switch **Enable** on → choose your
    email as the support email → **Save**.
-3. **Settings** tab → **Authorized domains** → **Add domain** →
-   `simplecleanspleen.github.io` → **Add**.
-   (`localhost` is already listed, which lets you test on your own computer.)
+3. **Settings** tab → **Authorized domains** → **Add domain** → add both
+   `cookqueue.fyi` and `www.cookqueue.fyi` → **Add** for each.
+   (`localhost` is already listed, which lets you test on your own computer.
+   The old `simplecleanspleen.github.io` redirects, so it doesn't need to be
+   authorized separately.)
 
 ## 4. Create the database and publish the rules
 
