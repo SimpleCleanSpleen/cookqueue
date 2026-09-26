@@ -640,13 +640,37 @@
       </div>`;
     document.body.classList.add('modal-open');
     const form = $('#username-form');
-    form.username.focus();
+    const input = form.username;
+    const msg = $('#un-msg');
+    const submitBtn = form.querySelector('[type="submit"]');
+    const defaultHint = msg.textContent;
+    const ALLOWED_CHARS_RE = /^[A-Za-z0-9_]*$/;
+    const FULL_RE = /^[A-Za-z0-9_]{3,20}$/;
+    const shake = () => { input.classList.remove('shake'); void input.offsetWidth; input.classList.add('shake'); };
+    let hadBadChars = !ALLOWED_CHARS_RE.test(input.value);
+    function updateValidity() {
+      const value = input.value;
+      const hasBadChars = !ALLOWED_CHARS_RE.test(value);
+      submitBtn.disabled = !FULL_RE.test(value);
+      input.classList.toggle('field-input--invalid', hasBadChars);
+      if (hasBadChars) {
+        msg.textContent = 'Usernames can only contain letters, numbers, and underscores.';
+        msg.classList.add('warn');
+        if (!hadBadChars) shake();
+      } else {
+        msg.textContent = defaultHint;
+        msg.classList.remove('warn');
+      }
+      hadBadChars = hasBadChars;
+    }
+    input.addEventListener('input', updateValidity);
+    updateValidity();
+    input.focus();
     form.addEventListener('submit', async e => {
       e.preventDefault();
-      const msg = $('#un-msg');
       const value = form.username.value.trim();
       const problem = Cloud.checkUsername(value);
-      if (problem) { msg.textContent = problem; msg.classList.add('warn'); return; }
+      if (problem) { msg.textContent = problem; msg.classList.add('warn'); shake(); return; }
       form.querySelector('[type="submit"]').disabled = true;
       msg.classList.remove('warn');
       msg.textContent = 'Saving…';
