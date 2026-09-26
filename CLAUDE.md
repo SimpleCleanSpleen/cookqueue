@@ -1,44 +1,38 @@
 # CookQueue: notes for Claude
 
-Delivery-app-style meal-prep recipe site. Static HTML/CSS/vanilla JS with no build step, hosted on GitHub Pages. README.md has the architecture, recipe schema and plans. Read it first.
+A meal-prep recipe site that looks like a delivery app. You browse a menu of recipes, pick a batch size, add it to a Prep Plan (the cart), and get one combined shopping list. It's for the owner (Jeremy) and friends and family, and it must cost $0. The site is static HTML/CSS/vanilla JS with no build step, hosted on GitHub Pages from `main` (`https://simplecleanspleen.github.io/cookqueue/`). README.md has the architecture, recipe schema and Firestore schema, so read it when you need details.
 
 ## Rules that must hold for every recipe
 All of these are enforced in `js/config.js` (`RULES`) and `RecipeService.validate()`. Keep them in sync with `docs/gemini-recipe-prompt.md`:
-- Calories per serving: main 600–1200, dessert 200–700, snack 100–400 (the badge color scale is per category).
-- Sodium ≤ 580 mg per serving (¼ tsp salt). Fat ≤ 30% of kcal. High protein preferred.
-- ≤ 10 ingredients per recipe, pantry staples included.
-- Active work ≤ 45 min at base servings.
-- Appliances: oven, stovetop, Instant Pot Duo Plus, Bella Pro Series 8 QT Air Fryer, Panasonic Microwave. Ninja Creami Deluxe for desserts only. Freezer allowed as storage.
-- One image per recipe (the dish on a white paper plate) at `images/<id>.webp|png|jpg`, with a placeholder fallback. Community recipes store a shrunk photo as a `data:` URL instead.
-- Community recipes (Firestore) go through the same `RecipeService.validate()` before saving and when loading.
+- Calories per serving: main 600–1200, dessert 200–700, snack 100–400 (the badge colors use a separate scale for each category).
+- Sodium ≤ 580 mg per serving. Fat ≤ 30% of kcal. High protein preferred.
+- ≤ 10 ingredients, pantry staples included. Active work ≤ 45 min at base servings.
+- Appliances: oven, stovetop, Instant Pot Duo Plus, Bella Pro Series 8 QT Air Fryer, Panasonic Microwave. Ninja Creami Deluxe for desserts only (1 pint = 2 servings, `servingsPerContainer: 2`). Freezer allowed as storage.
+- One image per recipe (the dish on a white paper plate) at `images/<id>.webp|png|jpg`, with a placeholder fallback. Community recipes store a shrunk photo as a `data:` URL.
+- A recipe that breaks a rule is hidden, not shown with warnings. A home-page banner names it and the console lists the reasons. Community recipes are validated both when they're saved and when they load.
 
 ## Working conventions
-- No Node on the owner's machine. Test with `python3 -m http.server 8000`. Scripts should be Python.
-- Recipes load from batch files (`js/data/*.js` pushing onto `CookQueue.RECIPE_BATCHES`) plus Firestore community recipes. The UI reads data only through `RecipeService`. Only `js/services/cloud-service.js` talks to Firebase.
-- Firebase is switched off while `CookQueue.FIREBASE.config` in `js/firebase-config.js` is null. Test with the emulators (`tests/README.md`, `?emulator` in the URL). Node is fine for these dev-only tests in cloud sessions; the owner never needs it.
-- `firestore.rules` is the real security boundary. If you change it, update `tests/rules.test.mjs`, run it, and tell the owner to re-publish the rules in the Firebase console (they paste it; there's no deploy key).
-- Cost matters: prefer free tiers. Don't add servers or paid services without asking.
+- The owner has no Node. Test with `python3 -m http.server 8000` (`file://` also works while Firebase is off). Write scripts in Python. Node is fine only for the dev tests in `tests/` (see `tests/README.md`, which runs against the Firebase emulators, `?emulator` in the URL).
+- Scripts are ordered `<script>` tags sharing `window.CookQueue`: config → data → libs → services → UI → app. The UI reads data only through `RecipeService`, and only `js/services/cloud-service.js` talks to Firebase.
+- Recipe batches are `js/data/*.js` files (copies of `batch-template.js`) that push onto `CookQueue.RECIPE_BATCHES`. Gemini writes them using `docs/gemini-recipe-prompt.md` and cites a real recipe in `source`. Spot-check those links, and never let Gemini invent barcodes.
+- `firestore.rules` is the real security boundary. If you change it, update and run `tests/rules.test.mjs`, then tell the owner to paste the new rules into the Firebase console (there's no deploy key).
+- Budget is $0: free tiers only. Ask before adding any server or paid service, and never use Firebase Hosting, Blaze, Cloud Storage or Functions without the owner's go-ahead.
 
-## Decisions so far (from the original build session, Sept 2026)
-- **Renamed PrepDash → CookQueue (Sept 26, 2026):** the app, the GitHub repo (`SimpleCleanSpleen/cookqueue`), and everything in it. Code, docs and UI text all say CookQueue now. Live site: `https://simplecleanspleen.github.io/cookqueue/`. GitHub still redirects the old `.../prepdash/` URL for a while, but treat the new one as canonical. `localStorage`'s key also changed (`prepdash.plan.v1` → `cookqueue.plan.v1`), so anyone who used the old site lost their saved Prep Plan — acceptable for a friends-and-family site this early.
-- **Hosting:** GitHub Pages from `main` (public repo, free). Every merge to `main` updates the live site within a minute or two. Work on a branch and open a PR.
-- **Merging (Sept 26, 2026):** the owner allows Claude to merge PRs, as long as earlier versions stay restorable. Use a regular merge commit (never squash, rebase or force-push `main`), and before each merge save the current `main` as a branch `backup/before-<feature>` (GitHub MCP `create_branch`; cloud sessions can't push tags) as a rollback point. Rolling back = GitHub's "Revert" button on the PR, or `git revert -m 1 <merge>`.
-- **Firebase (started Sept 26, 2026):** a separate Firebase project (not the owner's game project) using Auth (Google sign-in) + Firestore on the free Spark plan. No billing account, so it can't cost money. Cloud Storage and Cloud Functions need Blaze, so batch-recipe images stay in `images/` and community photos go inside the Firestore doc. The owner does the console steps in `docs/firebase-setup.md` and pastes the web config (not a secret) and the rules.
-- **Recipe data:** Gemini writes batches of 25 (5 per reply) using `docs/gemini-recipe-prompt.md`, and each batch is pasted into a copy of `js/data/batch-template.js`. Gemini is asked to adapt real web recipes and cite them in `source`. Spot-check those links, because they may be invented.
-- **Images:** one per recipe (the dish on a white paper plate, which was chosen over the Bentgo shot). The owner generates them free in the Gemini app. The Gemini *API* has no free tier for images; its Batch API costs about $0.42–0.49 per 25. A script to automate that is an open offer.
-- **Ratings/reviews:** placeholders for batch recipes. Community recipes show "New". Real reviews come later.
-- **Usernames:** unique, case-insensitive, 3–20 letters/numbers/underscores, changeable. Recipes store `ownerUid` only, and the name is looked up at load time. Google name/email is never shown publicly.
-- **Barcodes (Sept 26, 2026):** ingredients may carry a `barcode` (normalized GTIN: UPC-A padded to 13 digits). Lookup order: Firestore `products` catalog, then Open Food Facts (free, CORS OK, no key). Unknown barcodes are added to the catalog on publish, first entry wins. Gemini must not invent barcodes.
-- **Instacart:** discussed only. No-commission links are possible through the Instacart Developer Platform (needs a free dev key, a ~30–40 day production review, and a free server such as a Cloudflare Worker to hide the key; line items can carry UPCs). Nothing built yet.
-- **Budget:** the owner wants to spend $0. Only free tiers, and tell them if anything would cost money. Claude can't see their Claude usage or credit balance.
-- **Dessert servings:** a Ninja Creami Deluxe pint = 2 servings (`servingsPerContainer: 2`).
-- **Validation:** recipes that break a rule are hidden (not shown with warnings). A banner on the home page names them, and the console lists the reasons.
+## Git and merging
+Work on a branch and open a PR. The owner lets Claude merge, with these conditions:
+1. Before merging, save the current `main` as the branch `backup/before-<feature>` (GitHub MCP `create_branch`; cloud sessions can't push tags).
+2. Merge with a regular merge commit. Never squash, rebase or force-push `main`.
+3. To roll back, use GitHub's Revert button on the PR, or `git revert -m 1 <merge>`.
 
-## Open ideas the owner hasn't decided on yet
-- Python script to call the Gemini Batch API for images.
-- Moving recipes to `data/recipes.json`, which needs `fetch()` and therefore a local server for testing.
-- A service-account key so Claude can publish Firestore rules itself (offered, not wanted yet).
+## Current state (Sept 26, 2026)
+- **Live:** menu browsing with search, filters and sort; the zero-waste batch scaler; the Gantt cooking timeline (1–3 cooks, appliance limits); macro badges; the Prep Plan with its shopping list (saved in `localStorage` under `cookqueue.plan.v1`); a mock "Generate a recipe" modal that picks the best existing recipe. Only the 5 starter recipes in `js/data/mock-recipes.js` exist so far.
+- **Built and tested but off:** Firebase stays off while `CookQueue.FIREBASE.config` in `js/firebase-config.js` is `null`. Once the owner turns it on, this unlocks the following on the free Spark plan in a separate project:
+  - Google sign-in with unique usernames (3–20 letters, numbers or `_`, case-insensitive, changeable). Recipes store only `ownerUid`, and the Google name and email are never shown.
+  - Community recipes: the Add, Edit and My Recipes pages, which can also take pasted Gemini JSON.
+  - Barcode scanning. Barcodes are GTINs, with UPC-A padded to 13 digits. Lookup checks the Firestore `products` catalog first, then Open Food Facts. An unknown barcode is added to the catalog on publish, and the first entry wins.
+- **Placeholder:** ratings and reviews (community recipes show "New").
 
-## Roadmap
-- Now: switch on Firebase (owner is creating the project), then friends and family can submit recipes. Keep growing the menu with Gemini batches.
-- Next: ratings and reviews for signed-in users. A guest "request a meal" QR code may come after that. Don't use Firebase Hosting or paid features unless the owner says so.
+## Goals
+- **Now:** the owner is setting up Firebase (`docs/firebase-setup.md`) and will paste the web config (not a secret). Grow the menu with batches of 25 from Gemini.
+- **Next:** real ratings and reviews for signed-in users.
+- **Later / undecided:** a guest "request a meal" QR code; Instacart shopping links (researched only: free dev key, ~30–40 day review, needs a free Cloudflare Worker); a Python script that uses the Gemini Batch API for images (~$0.45 per 25, so ask first; the owner currently makes images free in the Gemini app).
