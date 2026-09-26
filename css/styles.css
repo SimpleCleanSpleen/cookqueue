@@ -616,6 +616,15 @@ body.drawer-open .drawer-backdrop { opacity: 1; pointer-events: auto; }
 }
 .field textarea, .ed-import textarea { resize: vertical; }
 .field input:focus, .field select:focus, .field textarea:focus, .ed-import textarea:focus { border-color: var(--ink); outline: 0; }
+.field input.field-input--invalid { border-color: var(--warn); }
+.field input.field-input--invalid:focus { border-color: var(--warn); }
+.field input.shake { animation: shake .32s linear; }
+@keyframes shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
+}
 .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
 .field-grid--3 { grid-template-columns: repeat(3, 1fr); }
 .field-grid--ing { grid-template-columns: 2fr 1fr 1fr 1fr; }
