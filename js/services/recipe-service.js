@@ -41,6 +41,7 @@ PrepDash.RecipeService = (function () {
     else r.ingredients.forEach((i, k) => {
       if (!isStr(i.name) || !i.name.trim() || !isStr(i.unit) || !isNum(i.qtyPerServing) || i.qtyPerServing <= 0) e.push(`Ingredient ${k + 1} needs a name, unit and amount`);
       if (i.package && (!isNum(i.package.size) || i.package.size <= 0 || !isStr(i.package.label))) e.push(`Ingredient ${k + 1} needs a package size`);
+      if (i.barcode != null && !(isStr(i.barcode) && /^\d{8,14}$/.test(i.barcode))) e.push(`Ingredient ${k + 1} has an invalid barcode`);
     });
     if (!Array.isArray(r.steps) || !r.steps.length) e.push('Needs at least one step');
     else r.steps.forEach((s, k) => {
@@ -175,8 +176,9 @@ PrepDash.RecipeService = (function () {
   async function save(recipe, id = null) {
     const check = validate(recipe);
     if (!check.ok) throw new Error(check.errors.join('; '));
-    if (id) { await PrepDash.Cloud.updateRecipe(id, recipe); return id; }
-    return PrepDash.Cloud.createRecipe(recipe);
+    const savedId = id ? (await PrepDash.Cloud.updateRecipe(id, recipe), id) : await PrepDash.Cloud.createRecipe(recipe);
+    PrepDash.ProductService.contribute(recipe); // shares new barcodes; never blocks the save
+    return savedId;
   }
 
   async function remove(id) {

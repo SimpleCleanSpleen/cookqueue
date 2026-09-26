@@ -39,6 +39,18 @@ await t('bob cannot delete alice username', assertFails(B.doc('usernames/alice_1
 await t('alice renames', assertSucceeds((() => { const b = A.batch(); b.delete(A.doc('usernames/alice_1')); b.set(A.doc('usernames/chef_a'), { uid: 'alice' }); b.set(A.doc('users/alice'), { username: 'Chef_A', usernameLower: 'chef_a', updatedAt: ts() }); return b.commit(); })()));
 await t('old name now free for bob', assertSucceeds((() => { const b = B.batch(); b.delete(B.doc('usernames/bob')); b.set(B.doc('usernames/alice_1'), { uid: 'bob' }); b.set(B.doc('users/bob'), { username: 'alice_1', usernameLower: 'alice_1', updatedAt: ts() }); return b.commit(); })()));
 await t('alice deletes own recipe', assertSucceeds(A.doc('recipes/test-aaaa').delete()));
+const product = (uid, extra = {}) => ({ name: 'Greek yogurt', brand: 'Fage', size: 32, unit: 'oz', label: '32 oz tub', group: 'Dairy', source: 'user', createdBy: uid, updatedAt: ts(), ...extra });
+await t('anon cannot add product', assertFails(anon.doc('products/0036000291452').set(product('x'))));
+await t('alice adds product', assertSucceeds(A.doc('products/0036000291452').set(product('alice'))));
+await t('anon can read product', assertSucceeds(anon.doc('products/0036000291452').get()));
+await t('bob cannot overwrite alice product', assertFails(B.doc('products/0036000291452').set(product('bob'))));
+await t('bob cannot update alice product', assertFails(B.doc('products/0036000291452').update({ name: 'x' })));
+await t('alice corrects own product', assertSucceeds(A.doc('products/0036000291452').set(product('alice', { size: 35.3 }))));
+await t('nobody deletes products', assertFails(A.doc('products/0036000291452').delete()));
+await t('bad barcode id rejected', assertFails(A.doc('products/abc123').set(product('alice'))));
+await t('bad unit rejected', assertFails(A.doc('products/12345670').set(product('alice', { unit: 'lbs' }))));
+await t('extra fields rejected', assertFails(A.doc('products/12345670').set(product('alice', { price: 3 }))));
+await t('cannot spoof createdBy', assertFails(A.doc('products/12345670').set(product('bob'))));
 console.log(`\n${pass} passed, ${fail} failed`);
 await env.cleanup();
 process.exit(fail ? 1 : 0);

@@ -12,6 +12,8 @@ rules_version = '2';
 //  - Only the owner can edit or delete a recipe, and nobody can change its owner.
 //  - Usernames are unique (case-insensitive) and only you can set yours.
 //  - Ratings can't be written yet (they arrive with reviews later).
+//  - Barcode catalog: anyone can read; users with a username can add a new
+//    barcode; only whoever added an entry can correct it; nobody deletes.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -85,6 +87,29 @@ service cloud.firestore {
         && validRecipe();
 
       allow delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+    }
+
+    match /products/{gtin} {
+      allow read: if true;
+
+      function validProduct() {
+        let d = request.resource.data;
+        return gtin.matches('^[0-9]{8,14}$')
+          && d.keys().hasOnly(['name', 'brand', 'size', 'unit', 'label', 'group', 'source', 'createdBy', 'updatedAt'])
+          && d.name is string && d.name.size() > 0 && d.name.size() <= 120
+          && (!('brand' in d) || (d.brand is string && d.brand.size() <= 60))
+          && (d.size is number || d.size is int) && d.size > 0 && d.size < 100000
+          && d.unit in ['oz', 'fl oz', 'cup', 'tbsp', 'tsp', 'can', 'box', 'bunch', 'each', 'scoop']
+          && d.label is string && d.label.size() <= 80
+          && d.group in ['Protein', 'Dairy', 'Canned', 'Frozen', 'Produce', 'Pantry']
+          && d.source in ['openfoodfacts', 'user']
+          && d.createdBy == request.auth.uid
+          && d.updatedAt == request.time;
+      }
+
+      allow create: if signedIn() && hasUsername() && validProduct();
+      allow update: if signedIn() && resource.data.createdBy == request.auth.uid && validProduct();
+      allow delete: if false;
     }
   }
 }

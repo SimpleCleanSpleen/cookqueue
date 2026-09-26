@@ -10,6 +10,8 @@
  *   usernames/{lower}    { uid }                     one doc per claimed name
  *   recipes/{recipeId}   recipe fields (README schema, no id/rating) +
  *                        { ownerUid, createdAt, updatedAt }
+ *   products/{gtin}      shared barcode catalog: { name, brand, size, unit,
+ *                        label, group, source, createdBy, updatedAt }
  */
 window.PrepDash = window.PrepDash || {};
 
@@ -209,10 +211,37 @@ PrepDash.Cloud = (function () {
     await db.doc(`recipes/${id}`).delete();
   }
 
+  /* ---------------------------------------------------------- barcode catalog */
+
+  /** A product from the shared catalog, or null. `gtin` is already normalized. */
+  async function getProduct(gtin) {
+    if (!await ready) return null;
+    const snap = await db.doc(`products/${gtin}`).get();
+    return snap.exists ? snap.data() : null;
+  }
+
+  /**
+   * Adds a product to the shared catalog. Only adds: the first entry for a
+   * barcode wins, so recipes stay consistent. Resolves false if it existed.
+   */
+  async function saveProduct(gtin, product) {
+    const user = requireUser();
+    const ref = db.doc(`products/${gtin}`);
+    const snap = await ref.get();
+    if (snap.exists) return false;
+    await ref.set({
+      name: product.name, brand: product.brand || '', size: product.size, unit: product.unit,
+      label: product.label, group: product.group, source: product.source,
+      createdBy: user.uid, updatedAt: fb.firestore.FieldValue.serverTimestamp(),
+    });
+    return true;
+  }
+
   const isMine = recipe => !!(session.user && recipe?.community?.ownerUid === session.user.uid);
 
   return {
     enabled, emulator, ready, session, onChange, signIn, signOut,
     checkUsername, setUsername, listRecipes, createRecipe, updateRecipe, deleteRecipe, isMine,
+    getProduct, saveProduct,
   };
 })();
