@@ -123,30 +123,64 @@ CookQueue.RecipeService = (function () {
   /** Recipes hidden by the last list() call, with the reasons. */
   const rejected = [];
 
-  /** Community recipes from the last list() call. */
+  /** Community recipes and reviews from the last list() call. */
   let community = [];
+  let reviews = [];
 
-  async function loadCommunity() {
+  /** Ids of the recipes shipped in js/data ("site recipes", owned by SITE_OWNER_USERNAME). */
+  const siteIds = () => new Set(allRecipes().map(r => r.id));
+  const isSiteRecipe = id => siteIds().has(id);
+
+  /** Runs a Cloud call, returning `fallback` (and logging) if Firebase is off or it fails. */
+  async function fromCloud(what, fn, fallback) {
     const Cloud = CookQueue.Cloud;
-    if (!Cloud || !Cloud.enabled) return [];
-    try {
-      return (await Cloud.listRecipes()).map(r => ({ ...r, batch: `Community (by ${r.community.author})` }));
-    } catch (err) {
-      console.warn('[CookQueue] Could not load community recipes:', err);
-      return [];
+    if (!Cloud || !Cloud.enabled) return fallback;
+    try { return await fn(Cloud); } catch (err) {
+      console.warn(`[CookQueue] Could not load ${what}:`, err);
+      return fallback;
     }
+  }
+
+  /** Real ratings from reviews; placeholder numbers in the data files are ignored. */
+  function withRating(r) {
+    const mine = reviews.filter(x => x.recipeId === r.id);
+    const rating = mine.length ? mine.reduce((sum, x) => sum + x.stars, 0) / mine.length : null;
+    return { ...r, rating, ratingCount: mine.length };
   }
 
   /**
    * Every recipe that passes validation. Recipes that fail (or reuse an
    * existing id) are hidden and recorded in `rejected`.
+   *
+   * Site recipes are credited to the site owner. Once the owner edits one it
+   * lives in Firestore under the same id, and that copy replaces the file
+   * version; one the owner deleted (hidden_recipes) is left out entirely.
    */
   async function list() {
-    community = await loadCommunity();
+    const sites = siteIds();
+    const [loaded, ownerUid, hidden, loadedReviews] = await Promise.all([
+      fromCloud('community recipes', C => C.listRecipes(), []),
+      fromCloud('the site owner', C => C.siteOwnerUid(), null),
+      fromCloud('hidden recipes', C => C.hiddenSiteRecipes(), []),
+      fromCloud('reviews', C => C.listReviews(), []),
+    ]);
+    const hiddenIds = new Set(hidden);
+    reviews = loadedReviews;
+    community = loaded
+      .filter(r => !hiddenIds.has(r.id))
+      .map(r => sites.has(r.id)
+        ? { ...r, batch: `Site recipe (by ${r.community.author})`, community: { ...r.community, site: true } }
+        : { ...r, batch: `Community (by ${r.community.author})` });
+    const overridden = new Set(community.map(r => r.id));
+    const owner = CookQueue.config.SITE_OWNER_USERNAME;
+    const site = allRecipes()
+      .filter(r => !hiddenIds.has(r.id) && !overridden.has(r.id))
+      .map(r => (ownerUid ? { ...r, community: { ownerUid, author: owner, site: true } } : r));
+
     rejected.length = 0;
     const seen = new Set();
     const ok = [];
-    [...allRecipes(), ...community].forEach(r => {
+    [...site, ...community].forEach(r => {
       let errors;
       try {
         errors = seen.has(r.id) ? [`Duplicate id "${r.id}"`] : validate(r).errors;
@@ -158,15 +192,15 @@ CookQueue.RecipeService = (function () {
         console.warn(`[CookQueue] Hidden "${r.name || r.id}" (${r.batch}):`, errors);
       } else {
         seen.add(r.id);
-        ok.push(clone(r));
+        ok.push(withRating(clone(r)));
       }
     });
     return ok;
   }
 
   async function get(id) {
-    const r = [...allRecipes(), ...community].find(x => x.id === id);
-    return r ? clone(r) : null;
+    const r = [...community, ...allRecipes()].find(x => x.id === id);
+    return r ? withRating(clone(r)) : null;
   }
 
   /**
@@ -176,14 +210,31 @@ CookQueue.RecipeService = (function () {
   async function save(recipe, id = null) {
     const check = validate(recipe);
     if (!check.ok) throw new Error(check.errors.join('; '));
-    const savedId = id ? (await CookQueue.Cloud.updateRecipe(id, recipe), id) : await CookQueue.Cloud.createRecipe(recipe);
+    const savedId = id
+      ? (await CookQueue.Cloud.updateRecipe(id, recipe, { site: isSiteRecipe(id) }), id)
+      : await CookQueue.Cloud.createRecipe(recipe);
     CookQueue.ProductService.contribute(recipe); // shares new barcodes; never blocks the save
     return savedId;
   }
 
   async function remove(id) {
-    await CookQueue.Cloud.deleteRecipe(id);
+    if (isSiteRecipe(id)) await CookQueue.Cloud.hideSiteRecipe(id);
+    else await CookQueue.Cloud.deleteRecipe(id);
   }
 
-  return { list, get, save, remove, validate, rejected };
+  /** Reviews of one recipe from the last list() call, newest first. */
+  function reviewsFor(id) {
+    return reviews.filter(x => x.recipeId === id).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  }
+
+  async function saveReview(id, { stars, comment }) {
+    if (!Number.isInteger(stars) || stars < 1 || stars > 5) throw new Error('Pick 1 to 5 stars.');
+    await CookQueue.Cloud.saveReview(id, { stars, comment });
+  }
+
+  async function deleteReview(id) {
+    await CookQueue.Cloud.deleteReview(id);
+  }
+
+  return { list, get, save, remove, validate, rejected, reviewsFor, saveReview, deleteReview, isSiteRecipe };
 })();

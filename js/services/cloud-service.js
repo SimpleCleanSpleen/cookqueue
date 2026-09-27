@@ -12,6 +12,10 @@
  *                        { ownerUid, createdAt, updatedAt }
  *   products/{gtin}      shared barcode catalog: { name, brand, size, unit,
  *                        label, group, source, createdBy, updatedAt }
+ *   recipes/{id}/reviews/{uid}  one review per person per recipe:
+ *                        { stars (1–5), comment, createdAt, updatedAt }
+ *   hidden_recipes/{id}  { hiddenAt }: a site recipe (js/data) the site
+ *                        owner deleted; only the site owner writes these
  *   failed_recipe_imports/{auto}  write-only debug log for Recipe Helper
  *                        (js/ui/recipe-helper.js): { ownerUid, createdAt,
  *                        rawInput, errors, context }. Nobody reads it from
@@ -162,16 +166,21 @@ CookQueue.Cloud = (function () {
     };
   }
 
+  /** uid → current username, for a set of uids (missing ones are left out). */
+  async function lookupNames(uids) {
+    const names = {};
+    await Promise.all([...new Set(uids)].map(async uid => {
+      const p = await db.doc(`users/${uid}`).get().catch(() => null);
+      if (p && p.exists) names[uid] = p.data().username;
+    }));
+    return names;
+  }
+
   /** Every community recipe, newest first, with each owner's current username. */
   async function listRecipes() {
     if (!await ready) return [];
     const snap = await db.collection('recipes').orderBy('createdAt', 'desc').get();
-    const owners = [...new Set(snap.docs.map(d => d.data().ownerUid))];
-    const names = {};
-    await Promise.all(owners.map(async uid => {
-      const p = await db.doc(`users/${uid}`).get().catch(() => null);
-      if (p && p.exists) names[uid] = p.data().username;
-    }));
+    const names = await lookupNames(snap.docs.map(d => d.data().ownerUid));
     return snap.docs.map(d => fromDoc(d, names));
   }
 
@@ -195,12 +204,21 @@ CookQueue.Cloud = (function () {
     return id;
   }
 
-  /** Replaces one of your recipes. The rules reject edits to anyone else's. */
-  async function updateRecipe(id, recipe) {
+  /**
+   * Replaces one of your recipes. The rules reject edits to anyone else's.
+   * With `site: true` (a recipe shipped in js/data), the first save creates
+   * the Firestore copy under the same id; the rules only let the site owner.
+   */
+  async function updateRecipe(id, recipe, { site = false } = {}) {
     const user = requireUser();
     const ref = db.doc(`recipes/${id}`);
     const snap = await ref.get();
-    if (!snap.exists) throw new Error('That recipe no longer exists.');
+    if (!snap.exists) {
+      if (!site) throw new Error('That recipe no longer exists.');
+      const now = fb.firestore.FieldValue.serverTimestamp();
+      await ref.set({ ...toDoc(recipe), ownerUid: user.uid, createdAt: now, updatedAt: now });
+      return;
+    }
     if (snap.data().ownerUid !== user.uid) throw new Error('You can only edit your own recipes.');
     await ref.set({
       ...toDoc(recipe),
@@ -213,6 +231,70 @@ CookQueue.Cloud = (function () {
   async function deleteRecipe(id) {
     requireUser();
     await db.doc(`recipes/${id}`).delete();
+  }
+
+  /* ---------------------------------------------------------- site recipes (js/data) */
+
+  const SITE_OWNER = String(CookQueue.config.SITE_OWNER_USERNAME || '').toLowerCase();
+
+  /** The site owner's uid, looked up from usernames/{name}; null if unclaimed. */
+  async function siteOwnerUid() {
+    if (!SITE_OWNER || !await ready) return null;
+    const snap = await db.doc(`usernames/${SITE_OWNER}`).get().catch(() => null);
+    return snap && snap.exists ? snap.data().uid : null;
+  }
+
+  /** Ids of site recipes the site owner has deleted. */
+  async function hiddenSiteRecipes() {
+    if (!await ready) return [];
+    const snap = await db.collection('hidden_recipes').get();
+    return snap.docs.map(d => d.id);
+  }
+
+  /** Deletes a site recipe for good: removes any Firestore copy and hides the file version. */
+  async function hideSiteRecipe(id) {
+    requireUser();
+    const ref = db.doc(`recipes/${id}`);
+    const snap = await ref.get();
+    const batch = db.batch();
+    if (snap.exists) batch.delete(ref);
+    batch.set(db.doc(`hidden_recipes/${id}`), { hiddenAt: fb.firestore.FieldValue.serverTimestamp() });
+    await batch.commit();
+  }
+
+  /* ---------------------------------------------------------- reviews */
+
+  /** Every review on the site, with each reviewer's current username. */
+  async function listReviews() {
+    if (!await ready) return [];
+    const snap = await db.collectionGroup('reviews').get();
+    const names = await lookupNames(snap.docs.map(d => d.id));
+    return snap.docs.map(d => {
+      const x = d.data();
+      return {
+        recipeId: d.ref.parent.parent.id, uid: d.id, author: names[d.id] || 'unknown',
+        stars: x.stars, comment: x.comment || '',
+        createdAt: toMillis(x.createdAt), updatedAt: toMillis(x.updatedAt),
+      };
+    });
+  }
+
+  /** Creates or replaces your review of a recipe. */
+  async function saveReview(recipeId, { stars, comment }) {
+    const user = requireUser();
+    if (!session.profile) throw new Error('Pick a username first.');
+    const ref = db.doc(`recipes/${recipeId}/reviews/${user.uid}`);
+    const snap = await ref.get();
+    const now = fb.firestore.FieldValue.serverTimestamp();
+    await ref.set({
+      stars, comment: String(comment || '').trim().slice(0, 1000),
+      createdAt: snap.exists ? snap.data().createdAt : now, updatedAt: now,
+    });
+  }
+
+  async function deleteReview(recipeId) {
+    const user = requireUser();
+    await db.doc(`recipes/${recipeId}/reviews/${user.uid}`).delete();
   }
 
   /* ---------------------------------------------------------- barcode catalog */
@@ -270,5 +352,6 @@ CookQueue.Cloud = (function () {
     enabled, emulator, ready, session, onChange, signIn, signOut,
     checkUsername, setUsername, listRecipes, createRecipe, updateRecipe, deleteRecipe, isMine,
     getProduct, saveProduct, logFailedImport,
+    siteOwnerUid, hiddenSiteRecipes, hideSiteRecipe, listReviews, saveReview, deleteReview,
   };
 })();

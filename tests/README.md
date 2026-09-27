@@ -12,7 +12,8 @@ npm run emulators &                          # Auth on :9099, Firestore on :8085
 npm run test:rules                           # security rules: who can read/write what
 npm run test:e2e                             # sign in → username → publish → edit → other user blocked → delete,
                                              # then a tampered Firestore doc must be hidden, not rendered,
-                                             # then barcodes: typed, from a photo, from a fake webcam, shared catalog
+                                             # then barcodes: typed, from a photo, from a fake webcam, shared catalog,
+                                             # then the site owner edits/re-photographs/deletes a site recipe and two people review one
 ```
 
 Screenshots land in `tests/screenshots/` (git-ignored). The barcode test draws its own

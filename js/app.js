@@ -64,7 +64,7 @@
 
   const byId = id => state.recipes.find(r => r.id === id);
 
-  /** Placeholder ratings weigh count; new community recipes (no ratings yet) sort last. */
+  /** Real ratings weighted by review count; recipes with no reviews yet sort last. */
   const score = r => (r.rating || 0) * Math.log((r.ratingCount || 0) + 1);
 
   const signedIn = () => !!state.session.user;
@@ -293,6 +293,8 @@
               <p>${esc(r.storage.reheat)}</p>
               ${r.notes?.length ? `<ul class="notes">${r.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
             </section>
+
+            <section class="panel" id="reviews-panel"></section>
           </div>
 
           <aside class="recipe-side">
@@ -302,8 +304,108 @@
       </article>`;
 
     updateRecipe();
+    renderReviews();
     countUpCalories();
     window.scrollTo(0, 0);
+  }
+
+  /* ---------------------------------------------------------- ratings & reviews */
+
+  const STAR_LABELS = ['', 'Not for me', 'It was OK', 'Good', 'Really good', 'Loved it'];
+  const starsText = n => '★'.repeat(n) + '☆'.repeat(5 - n);
+
+  function reviewFormHTML(mine) {
+    if (!Cloud.enabled) return '';
+    if (!signedIn()) {
+      return `<p class="muted review-signin">Sign in to rate this recipe and leave a comment.
+        <button class="btn btn-small btn-primary" data-action="sign-in">Sign in with Google</button></p>`;
+    }
+    if (!username()) return '<p class="muted">Pick a username to leave a review.</p>';
+    return `
+      <form id="review-form" class="review-form" novalidate>
+        <span class="field-label">${mine ? 'Your review' : 'Rate it'}</span>
+        <div class="star-picker" role="radiogroup" aria-label="Stars">
+          ${[5, 4, 3, 2, 1].map(n => `<input type="radio" name="stars" id="star-${n}" value="${n}" ${mine?.stars === n ? 'checked' : ''}>
+          <label for="star-${n}" title="${n} star${n > 1 ? 's' : ''}: ${STAR_LABELS[n]}"><span class="sr-only">${n} star${n > 1 ? 's' : ''}</span>★</label>`).join('')}
+        </div>
+        <label class="field"><span class="field-label">Comment (optional)</span>
+          <textarea name="comment" rows="3" maxlength="1000" placeholder="How did it turn out? Any tweaks?">${esc(mine?.comment || '')}</textarea></label>
+        <div class="helper-actions">
+          <button class="btn btn-primary btn-small" type="submit">${mine ? 'Update review' : 'Post review'}</button>
+          ${mine ? '<button type="button" class="btn btn-ghost btn-small btn-danger" data-action="review-delete">Delete my review</button>' : ''}
+        </div>
+        <small class="field-hint" id="review-msg"></small>
+      </form>`;
+  }
+
+  function renderReviews() {
+    const r = state.current;
+    const el = $('#reviews-panel');
+    if (!r || !el) return;
+    const list = Service.reviewsFor(r.id);
+    const uid = state.session.user?.uid;
+    const mine = uid ? list.find(x => x.uid === uid) : null;
+    el.innerHTML = `
+      <div class="panel-head"><div>
+        <h2>Ratings & reviews</h2>
+        <p class="muted">${list.length ? `<b class="review-avg">★ ${r.rating.toFixed(1)}</b> from ${list.length} review${list.length > 1 ? 's' : ''}` : 'No reviews yet.'}</p>
+      </div></div>
+      ${reviewFormHTML(mine)}
+      ${list.length ? `<ul class="review-list">${list.map(x => `
+        <li class="review">
+          <div class="review-head">
+            <span class="review-stars" aria-label="${x.stars} out of 5 stars">${starsText(x.stars)}</span>
+            <b>@${esc(x.author)}</b>${x.uid === uid ? '<span class="muted small">(you)</span>' : ''}
+            <span class="muted small">${x.updatedAt ? new Date(x.updatedAt).toLocaleDateString() : ''}</span>
+          </div>
+          ${x.comment ? `<p>${esc(x.comment)}</p>` : ''}
+        </li>`).join('')}</ul>` : ''}`;
+    $('#review-form')?.addEventListener('submit', onReviewSubmit);
+  }
+
+  /** Reloads ratings after a review change and refreshes the header chip + panel. */
+  async function refreshReviews() {
+    const id = state.current?.id;
+    await reloadRecipes();
+    const fresh = byId(id);
+    if (!fresh || state.current?.id !== id) return;
+    Object.assign(state.current, { rating: fresh.rating, ratingCount: fresh.ratingCount });
+    const chip = $('.recipe-title-row .rating');
+    if (chip) chip.outerHTML = ui.rating(fresh, true);
+    renderReviews();
+  }
+
+  async function onReviewSubmit(e) {
+    e.preventDefault();
+    const form = e.target;
+    const msg = $('#review-msg');
+    const stars = +(new FormData(form).get('stars') || 0);
+    if (!stars) { msg.textContent = 'Pick 1 to 5 stars.'; msg.classList.add('warn'); return; }
+    form.querySelector('[type="submit"]').disabled = true;
+    msg.classList.remove('warn');
+    msg.textContent = 'Saving…';
+    try {
+      await Service.saveReview(state.current.id, { stars, comment: form.comment.value });
+      await refreshReviews();
+      toast('⭐ Thanks for the review!');
+    } catch (err) {
+      console.error(err);
+      msg.textContent = friendlyError(err);
+      msg.classList.add('warn');
+      form.querySelector('[type="submit"]').disabled = false;
+    }
+  }
+
+  async function deleteReview() {
+    if (!confirm('Delete your review of this recipe?')) return;
+    try {
+      await Service.deleteReview(state.current.id);
+      await refreshReviews();
+      toast('🗑 Review deleted');
+    } catch (err) {
+      console.error(err);
+      toast(`⚠ ${esc(friendlyError(err))}`);
+    }
   }
 
   /** Re-render only the parts that depend on servings / cooks / assignments. */
@@ -534,7 +636,7 @@
   }
 
   function friendlyError(err) {
-    if (err?.code === 'permission-denied') return 'Not allowed. You can only change your own recipes.';
+    if (err?.code === 'permission-denied') return 'Not allowed. You can only change your own recipes and reviews.';
     if (err?.code === 'unavailable') return 'You seem to be offline. Try again in a moment.';
     return err?.message || 'Something went wrong.';
   }
@@ -682,6 +784,9 @@
         await Cloud.setUsername(value);
         closeModal();
         toast(`👋 You're <b>@${esc(value)}</b>`);
+        // Author names (and which recipes are yours) depend on usernames.
+        await reloadRecipes();
+        if (!state.editor) route();
       } catch (err) {
         console.error(err);
         msg.textContent = friendlyError(err);
@@ -858,6 +963,7 @@
     },
     'username-open':  () => { closeAccountMenu(); openUsername(); },
     'recipe-delete':  el => deleteRecipe(el.dataset.id),
+    'review-delete':  deleteReview,
     'plan-close':     closeDrawer,
   };
 
