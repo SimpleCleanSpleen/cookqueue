@@ -65,6 +65,51 @@ await t('nobody can read a failed import', assertFails(A.doc(`failed_recipe_impo
 await t('nobody can update a failed import', assertFails(A.doc(`failed_recipe_imports/${failedImportDoc.id}`).update({ context: 'batch' })));
 await t('nobody can delete a failed import', assertFails(A.doc(`failed_recipe_imports/${failedImportDoc.id}`).delete()));
 
+
+// ---- reviews ----
+const review = (extra = {}) => ({ stars: 5, comment: 'Great!', createdAt: ts(), updatedAt: ts(), ...extra });
+const Rv = db => db.doc('recipes/some-recipe/reviews/alice');
+await t('alice reviews a recipe', assertSucceeds(Rv(A).set(review())));
+await t('anon can read a review', assertSucceeds(anon.doc('recipes/some-recipe/reviews/alice').get()));
+await t('anon can list every review (collection group)', assertSucceeds(anon.collectionGroup('reviews').get()));
+await t('bob cannot write alice review', assertFails(B.doc('recipes/some-recipe/reviews/alice').set(review())));
+await t('bob cannot delete alice review', assertFails(B.doc('recipes/some-recipe/reviews/alice').delete()));
+await t('0 stars rejected', assertFails(B.doc('recipes/some-recipe/reviews/bob').set(review({ stars: 0 }))));
+await t('6 stars rejected', assertFails(B.doc('recipes/some-recipe/reviews/bob').set(review({ stars: 6 }))));
+await t('4.5 stars rejected', assertFails(B.doc('recipes/some-recipe/reviews/bob').set(review({ stars: 4.5 }))));
+await t('comment over 1000 chars rejected', assertFails(B.doc('recipes/some-recipe/reviews/bob').set(review({ comment: 'x'.repeat(1001) }))));
+await t('extra review field rejected', assertFails(B.doc('recipes/some-recipe/reviews/bob').set(review({ helpful: 3 }))));
+await t('anon cannot review', assertFails(anon.doc('recipes/some-recipe/reviews/x').set(review())));
+await t('no-username user cannot review', assertFails(env.authenticatedContext('dave').firestore().doc('recipes/some-recipe/reviews/dave').set(review())));
+const firstReview = (await Rv(A).get()).data();
+await t('alice edits own review', assertSucceeds(Rv(A).set({ stars: 3, comment: 'Changed my mind', createdAt: firstReview.createdAt, updatedAt: ts() })));
+await t('alice cannot reset createdAt', assertFails(Rv(A).set(review({ stars: 4 }))));
+await t('owner can review own recipe', assertSucceeds(A.doc('recipes/test-own/reviews/alice').set(review())));
+await t('alice deletes own review', assertSucceeds(Rv(A).delete()));
+
+// ---- site recipes (js/data), owned by the site owner ----
+const J = env.authenticatedContext('jer').firestore();
+await t('jer claims jeremy5', assertSucceeds(claim(J, 'jer', 'jeremy5')));
+await t('site owner creates the copy of a site recipe', assertSucceeds(J.doc('recipes/greek-chicken-sheet-pan').set(recipe('jer'))));
+await t('someone else cannot claim a site recipe id', assertFails(A.doc('recipes/korean-turkey-rice-bowls').set(recipe('alice'))));
+await t('site owner can still post normal recipes', assertSucceeds(J.doc('recipes/jer-test-abcde').set(recipe('jer'))));
+await t('anon can read hidden_recipes', assertSucceeds(anon.collection('hidden_recipes').get()));
+await t('alice cannot hide a site recipe', assertFails(A.doc('hidden_recipes/korean-turkey-rice-bowls').set({ hiddenAt: ts() })));
+await t('site owner cannot hide a non-site id', assertFails(J.doc('hidden_recipes/jer-test-abcde').set({ hiddenAt: ts() })));
+await t('site owner deletes copy + hides a site recipe in one batch', assertSucceeds((() => { const b = J.batch(); b.delete(J.doc('recipes/greek-chicken-sheet-pan')); b.set(J.doc('hidden_recipes/greek-chicken-sheet-pan'), { hiddenAt: ts() }); return b.commit(); })()));
+await t('extra field on hidden_recipes rejected', assertFails(J.doc('hidden_recipes/chickpea-shawarma-dip').set({ hiddenAt: ts(), why: 'x' })));
+
+// ---- the rules' hard-coded lists match the site ----
+const rulesText = fs.readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8');
+const listed = [...rulesText.match(/function siteRecipeId\(id\) \{[\s\S]*?\]/)[0].matchAll(/'([a-z0-9-]+)'/g)].map(m => m[1]).sort();
+const ctx = { window: {} }; ctx.window.CookQueue = ctx.window; ctx.CookQueue = ctx.window;
+const vm = await import('vm'); vm.createContext(ctx);
+const dataFiles = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8').replace(/<!--[\s\S]*?-->/g, '').match(/js\/data\/[\w-]+\.js/g);
+for (const f of ['js/config.js', ...dataFiles]) vm.runInContext(fs.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8'), ctx);
+const shipped = ctx.window.RECIPE_BATCHES.flatMap(b => b.recipes).map(r => r.id).sort();
+await t(`rules list the same ${shipped.length} site recipe ids as js/data`, JSON.stringify(listed) === JSON.stringify(shipped) ? Promise.resolve() : Promise.reject(new Error(`rules: ${listed.length}, data: ${shipped.length}`)));
+await t('rules site owner matches config', rulesText.includes(`usernames/${ctx.window.config.SITE_OWNER_USERNAME.toLowerCase()})`) ? Promise.resolve() : Promise.reject(new Error('mismatch')));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 await env.cleanup();
 process.exit(fail ? 1 : 0);

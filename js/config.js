@@ -73,7 +73,7 @@ CookQueue.config = {
   /** Home-screen category rail. `match` receives a recipe. */
   CATEGORIES: [
     { id: 'all',           label: 'All',          emoji: '🍽️', match: () => true },
-    { id: 'community',     label: 'Community',    emoji: '👥', match: r => !!r.community },
+    { id: 'community',     label: 'Community',    emoji: '👥', match: r => !!r.community && !r.community.site },
     { id: 'mexican',       label: 'Mexican',      emoji: '🌮', match: r => r.tags.includes('mexican') },
     { id: 'asian',         label: 'Asian',        emoji: '🥢', match: r => r.tags.includes('asian') },
     { id: 'mediterranean', label: 'Mediterranean', emoji: '🫒', match: r => r.tags.includes('mediterranean') },
@@ -86,4 +86,12 @@ CookQueue.config = {
   ],
 
   STORAGE_KEY: 'cookqueue.plan.v1',
+
+  /**
+   * The username that owns every recipe shipped in js/data/*.js ("site
+   * recipes"). Signed in as this user, you can edit (photo included) or delete
+   * them; the first edit copies the recipe into Firestore under the same id.
+   * firestore.rules hard-codes the same username and site-recipe ids.
+   */
+  SITE_OWNER_USERNAME: 'jeremy5',
 };

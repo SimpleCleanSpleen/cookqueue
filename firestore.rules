@@ -9,7 +9,12 @@ rules_version = '2';
 //  - Only the owner edits or deletes a recipe; the owner can't be changed.
 //  - Usernames are unique (case-insensitive) and only you can set yours.
 //  - Only whoever added a barcode can correct it; nobody deletes one.
-//  - Ratings can't be written until reviews ship.
+//  - Reviews: one per person per recipe (recipes/{id}/reviews/{uid}), 1–5
+//    stars + optional comment; anyone reads, only the reviewer writes/deletes.
+//  - Site recipes (shipped in js/data, ids listed in siteRecipeId() below)
+//    belong to the site owner, the username in siteOwner(). Only they can
+//    create the Firestore copy of one or hide one (hidden_recipes).
+//  - Recipe docs can't carry rating fields; ratings are computed from reviews.
 //  - failed_recipe_imports is a write-only debug log (Recipe Helper): signed-in
 //    users can create a capped, size-limited entry stamped as their own;
 //    nobody can read, edit or delete it from the app. Give it a Firestore TTL
@@ -23,6 +28,28 @@ service cloud.firestore {
 
     function hasUsername() {
       return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    // Keep in sync with CookQueue.config.SITE_OWNER_USERNAME.
+    function siteOwner() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/usernames/jeremy5)
+        && get(/databases/$(database)/documents/usernames/jeremy5).data.uid == request.auth.uid;
+    }
+
+    // Ids of the recipes shipped in js/data (tests/rules.test.mjs checks this list).
+    function siteRecipeId(id) {
+      return id in [
+        'orange-ginger-air-fryer-chicken-broccoli', 'mexican-hot-chocolate-protein-creami', 'buffalo-chicken-mac-and-cheese',
+        'turkey-chorizo-taco-skillet', 'lightened-up-butter-chicken', 'air-fryer-general-tsos-chicken',
+        'louisiana-red-beans-and-rice', 'greek-chicken-sheet-pan', 'turkey-bolognese-spaghetti-squash',
+        'korean-turkey-rice-bowls', 'mediterranean-turkey-meatballs', 'thai-peanut-chicken-stir-fry',
+        'caribbean-jerk-chicken-bowls', 'cajun-vegan-red-beans-rice', 'vegan-creamy-butter-chickpeas',
+        'vegan-buffalo-tofu-mac', 'vegan-general-tsos-tofu', 'spicy-buffalo-chickpeas',
+        'chickpea-shawarma-dip', 'spinach-turkey-egg-muffins', 'turkey-chorizo-quesadilla',
+        'crispy-pita-chips-guacamole', 'chocolate-peanut-butter-creami', 'strawberry-cheesecake-creami',
+        'chocolate-fudge-mug-cake', 'mixed-berry-sorbet-creami', 'cinnamon-apple-baked-oats'
+      ];
     }
 
     match /users/{uid} {
@@ -75,6 +102,7 @@ service cloud.firestore {
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time
+        && (!siteRecipeId(recipeId) || siteOwner())
         && validRecipe();
 
       allow update: if signedIn()
@@ -85,6 +113,40 @@ service cloud.firestore {
         && validRecipe();
 
       allow delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+    }
+
+    match /recipes/{recipeId}/reviews/{reviewerUid} {
+      allow read: if true;
+
+      function validReview() {
+        let d = request.resource.data;
+        return d.keys().hasOnly(['stars', 'comment', 'createdAt', 'updatedAt'])
+          && d.stars is int && d.stars >= 1 && d.stars <= 5
+          && d.comment is string && d.comment.size() <= 1000
+          && d.updatedAt == request.time;
+      }
+
+      allow create: if signedIn() && hasUsername() && request.auth.uid == reviewerUid
+        && recipeId.matches('^[a-z0-9-]{3,80}$')
+        && request.resource.data.createdAt == request.time
+        && validReview();
+      allow update: if signedIn() && request.auth.uid == reviewerUid
+        && request.resource.data.createdAt == resource.data.createdAt
+        && validReview();
+      allow delete: if signedIn() && request.auth.uid == reviewerUid;
+    }
+
+    // Collection-group read, so the site can load every review in one query.
+    match /{path=**}/reviews/{reviewerUid} {
+      allow read: if true;
+    }
+
+    match /hidden_recipes/{recipeId} {
+      allow read: if true;
+      allow create: if siteOwner() && siteRecipeId(recipeId)
+        && request.resource.data.keys().hasOnly(['hiddenAt'])
+        && request.resource.data.hiddenAt == request.time;
+      allow update, delete: if siteOwner();
     }
 
     match /products/{gtin} {

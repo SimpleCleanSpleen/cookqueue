@@ -6,7 +6,7 @@
   "scripts": {
     "emulators": "firebase emulators:start --project demo-cookqueue --config ../firebase.json",
     "test:rules": "node rules.test.mjs",
-    "test:e2e": "sh reset-emulators.sh && node e2e.mjs && sh reset-emulators.sh && node tampered-recipe.mjs && sh reset-emulators.sh && node barcode.e2e.mjs"
+    "test:e2e": "sh reset-emulators.sh && node e2e.mjs && sh reset-emulators.sh && node tampered-recipe.mjs && sh reset-emulators.sh && node barcode.e2e.mjs && sh reset-emulators.sh && node site-reviews.e2e.mjs"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^3.0.4",

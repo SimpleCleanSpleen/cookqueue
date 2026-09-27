@@ -21,7 +21,9 @@ Once Firebase is switched on (see [docs/firebase-setup.md](docs/firebase-setup.m
 - **Recipe Helper:** two tabs on the Add page for going from an idea to valid JSON without writing it by hand. Each has a **📋 Copy AI Prompt** button (plus ChatGPT, Gemini and Claude links). The prompt makes your own free AI chat interview you one question at a time, convert units as you go (metric or imperial, and it switches when you ask), check every CookQueue rule, then hand back JSON to paste in. **One recipe** pastes into "Have it as JSON?"; **Several at once** takes a JSON list: recipes that pass publish immediately, recipes that fail land in a review queue you can fix with another AI round-trip or by editing manually. CookQueue itself never calls an AI.
 - **Shared by @username** on each community recipe. Only the owner sees ✏️ Edit and 🗑 Delete, and the Firestore security rules enforce that on the server as well.
 - **My recipes** (account menu, top right) lists everything you've shared, including any that are hidden because they break a rule.
-- A **Community** category on the home page. Community recipes show "New" until real ratings arrive.
+- A **Community** category on the home page for recipes shared by users.
+- **Ratings & reviews:** signed-in users with a username give 1–5 stars and an optional comment on any recipe (their own included), one review per recipe, and can edit or delete it. Averages show on menu cards and the recipe page; recipes with no reviews show "New".
+- **Site recipes belong to @jeremy5:** the recipes shipped in `js/data/` are credited to the site owner (`SITE_OWNER_USERNAME` in `js/config.js`). Signed in as that user you get Edit (photo included) and Delete on them. The first edit saves a copy in Firestore under the same id, which replaces the file version; Delete hides the recipe for good (`hidden_recipes`).
 
 - **Barcodes:** each ingredient can have a UPC/EAN. Scan it with the phone camera, pick a photo of it, or type the digits. CookQueue checks its own shared catalog (Firestore `products`), then [Open Food Facts](https://world.openfoodfacts.org) (free, open data), and fills in the product name, aisle and package size in oz / fl oz. Barcodes nobody has seen before are saved to the catalog when you publish, so the next person who scans them gets the same name and size. Browsers without a built-in barcode reader (iPhone Safari, Firefox) load a free open-source one (zxing-wasm) the first time someone scans.
 
@@ -166,7 +168,7 @@ Recipes are **pure JSON**: no functions and no computed fields. A generator only
   "cuisine": "asian",
   "tags": ["asian", "dairy free", "high protein"],   // lowercase; drives chips + categories
   "spiceLevel": 0-5,                          // 0 = mild, rendered as 🌶️ ×5 scale
-  "rating": 4.9, "ratingCount": 2087,
+  "rating": 4.9, "ratingCount": 2087,   // ignored: real ratings come from reviews
   "baseServings": 4,                          // servings that step durations are written for
   "maxServings": 12,                          // scaler upper bound (appliance capacity)
   "container": "Bentgo 1-compartment (black)",
@@ -236,7 +238,9 @@ Firestore layout (rules in `firestore.rules`):
 |---|---|---|---|
 | `users` | Firebase uid | `username`, `usernameLower`, `updatedAt` | that user |
 | `usernames` | lower-case username | `uid` | the user claiming it (keeps names unique) |
-| `recipes` | `<slug>-<5 random chars>` | the recipe schema above (no `id`/`rating`) + `ownerUid`, `createdAt`, `updatedAt` | owner only; owner can't be changed |
+| `recipes` | `<slug>-<5 random chars>`, or a site recipe's own id | the recipe schema above (no `id`/`rating`) + `ownerUid`, `createdAt`, `updatedAt` | owner only; owner can't be changed; site recipe ids only by the site owner |
+| `recipes/{id}/reviews` | reviewer's uid | `stars` (1–5), `comment` (≤ 1000 chars), `createdAt`, `updatedAt` | the reviewer only, one per recipe; anyone reads |
+| `hidden_recipes` | site recipe id | `hiddenAt` | the site owner only |
 | `products` | normalized barcode (GTIN) | `name`, `brand`, `size`, `unit`, `label`, `group`, `source` (`openfoodfacts`/`user`), `createdBy`, `updatedAt` | anyone with a username adds; first entry wins; only its creator can correct it; never deleted |
 | `failed_recipe_imports` | auto | `ownerUid`, `createdAt`, `rawInput` (capped), `errors`, `context` | write-only debug log for Recipe Helper; anyone with a username adds one for themselves; nobody can read, edit or delete it from the app |
 
