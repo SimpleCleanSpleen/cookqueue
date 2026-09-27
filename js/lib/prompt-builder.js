@@ -83,39 +83,59 @@ CookQueue.PromptBuilder = (function () {
 - steps: durationMin is at baseServings. durationScaling (0–1) is the share of that time that grows with batch size. "active": true = hands-on. The last step is portioning into containers. No circular dependsOn.
 - Don't invent a source URL you didn't actually find — set "source": null instead.`;
 
-  function buildSingleRecipePrompt({ dishName, ingredientsOnHand, appliances }) {
-    return `Hi! I'm using CookQueue, a meal-prep site with strict recipe rules. I need ONE recipe as JSON matching the exact shape below. Base it on a real published recipe if you can, and cite it honestly (or set "source": null if you're not sure of a URL).
+  const UNITS_BLOCK = `UNITS — CONVERT AS WE GO
+- I may give amounts in any system: grams, kilograms, ml, liters, pounds, ounces, cups, spoons, or loose amounts like "a handful" or "2 chicken breasts". Accept whatever I use.
+- If I ask to switch systems (e.g. "show me that in metric" or "switch to imperial"), switch how you talk to me for the rest of the chat, and show the converted amounts.
+- Whenever you convert something, show it briefly so I can check it, e.g. "200 g chicken ≈ 7 oz".
+- Loose amounts: pin them down with a typical weight and tell me what you assumed (e.g. "1 medium chicken breast ≈ 8 oz").
+- The FINAL JSON must only use these units: "oz", "fl oz", "cup", "tbsp", "tsp", "can", "box", "bunch", "each", "scoop". Convert everything into them for the JSON, no matter which system we chatted in (weights → "oz", liquids → "fl oz"/"cup"/"tbsp"/"tsp").`;
 
-What I have in mind: ${dishName || '(pick something that fits the rules)'}
-Ingredients I already have on hand: ${ingredientsOnHand || '(none specified — your choice)'}
-Appliances available to me: ${appliances && appliances.length ? appliances.join(', ') : '(any of the approved ones below)'}
+  const INTERVIEW_BLOCK = `HOW TO TALK TO ME
+- Interview me step by step. Ask ONE short question at a time and wait for my answer before the next one. Don't dump a long form on me.
+- Roughly in this order: the dish and what kind it is (main, snack or dessert) → how many servings → ingredients and amounts → which appliances I'll use → the steps and roughly how long each takes → anything you still need for nutrition.
+- Suggest sensible defaults when I'm unsure, and fill in nutrition yourself from the ingredients (tell me your estimate).
+- If something I want breaks a rule below (too much salt, too many ingredients, an appliance that isn't allowed…), tell me right away and suggest a fix.
+- Before writing the JSON, show me a short plain-English summary (servings, ingredients with amounts, per-serving calories/protein/fat/sodium) and ask me to confirm.`;
+
+  function buildSingleRecipePrompt() {
+    return `Hi! I'm adding a recipe to CookQueue, a meal-prep site with strict recipe rules. Help me turn my recipe into JSON I can paste into the site.
+
+${INTERVIEW_BLOCK}
+
+${UNITS_BLOCK}
 
 ${rulesBlock()}
 
 OUTPUT FORMAT
-Valid JSON only: double quotes, no comments, no trailing commas. One recipe object in this exact shape:
+When I confirm the summary, reply with ONLY the final JSON (no commentary) in a single code block: valid JSON, double quotes, no comments, no trailing commas. One recipe object in this exact shape:
 ${SHAPE}
 
 ${FIELD_RULES}
 
-Check the recipe against every hard rule above (especially the sodium math and the calorie math in rule 9) before giving it to me, and fix anything that fails. Reply with just the JSON object.`;
+Check the recipe against every hard rule above (especially the sodium math and the calorie math in rule 9) before giving me the JSON, and fix anything that fails.
+
+Start now by asking me your first question.`;
   }
 
-  function buildBatchPrompt({ ramble }) {
-    return `Hi! I'm using CookQueue, a meal-prep site with strict recipe rules. I'm going to describe several recipes messily below. Please ask me clarifying questions ONE AT A TIME — don't guess — until you have enough for EACH recipe to satisfy every hard rule below (especially the per-serving macros and the zero-waste package sizes). Once you're confident, reply with a JSON array containing one object per recipe, in the exact shape below.
+  function buildBatchPrompt() {
+    return `Hi! I'm adding several recipes to CookQueue, a meal-prep site with strict recipe rules. Help me turn them into JSON I can paste into the site.
 
-My notes:
-${ramble || '(nothing written yet)'}
+${INTERVIEW_BLOCK}
+- First ask how many recipes I want to add and their names, then go through them ONE recipe at a time, finishing each one before starting the next.
+
+${UNITS_BLOCK}
 
 ${rulesBlock()}
 
 OUTPUT FORMAT
-Valid JSON only: double quotes, no comments, no trailing commas. A JSON array, one object per recipe, each in this exact shape:
+When I've confirmed every recipe, reply with ONLY the final JSON (no commentary) in a single code block: valid JSON, double quotes, no comments, no trailing commas. A JSON array with one object per recipe, each in this exact shape:
 ${SHAPE}
 
 ${FIELD_RULES}
 
-Check every recipe against every hard rule above (especially the sodium math and the calorie math in rule 9) before giving me the array, and fix anything that fails.`;
+Check every recipe against every hard rule above (especially the sodium math and the calorie math in rule 9) before giving me the array, and fix anything that fails.
+
+Start now by asking me your first question.`;
   }
 
   function buildFixPrompt({ recipe, errors }) {

@@ -56,7 +56,7 @@ await page.waitForSelector('#account [data-action="sign-in"]');
 await signIn('jeremy@example.com', 'jeremy_cooks');
 await page.goto(`${BASE}#/add`);
 await page.waitForSelector('.editor-form .ed-section');
-const json = await page.evaluate(() => { const r = structuredClone(CookQueue.RECIPE_BATCHES[0].recipes[1]); r.name = 'Barcode Test Chicken'; return JSON.stringify(r); });
+const json = await page.evaluate(() => { const r = structuredClone(CookQueue.RECIPE_BATCHES[0].recipes[0]); r.name = 'Barcode Test Chicken'; return JSON.stringify(r); });
 await page.click('.ed-import summary');
 await page.fill('#ed-json', json);
 await page.click('[data-ed="import"]');

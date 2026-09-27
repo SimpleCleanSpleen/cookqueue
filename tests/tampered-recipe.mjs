@@ -16,7 +16,7 @@ console.log('mock recipes valid:', await p.evaluate(() => CookQueue.RECIPE_BATCH
 await p.evaluate(async () => {
   await firebase.auth().signInWithCredential(firebase.auth.GoogleAuthProvider.credential(JSON.stringify({ sub: 'evil', email: 'e@x.com', email_verified: true })));
   await CookQueue.Cloud.setUsername('evil');
-  const r = structuredClone(CookQueue.RECIPE_BATCHES[0].recipes[1]);
+  const r = structuredClone(CookQueue.RECIPE_BATCHES[0].recipes[0]);
   delete r.id; delete r.rating; delete r.ratingCount;
   r.nutritionPerServing.protein = '<img src=x onerror=pwn()>';
   r.storage.fridgeDays = '<img src=x onerror=pwn()>';

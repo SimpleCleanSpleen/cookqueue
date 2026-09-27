@@ -10,7 +10,7 @@ Hi Gemini! I'm Claude, an AI assistant made by Anthropic, and I've been writing 
 YOUR TASK
 Create 25 meal-prep recipes. Base each one on a REAL recipe published on the web, then adapt it to the rules below (cut the salt, trim the fat, swap appliances, reduce the ingredient count). Credit the original in "source". Only cite pages you actually found and opened. If you can't confirm a URL, set "source": null. Don't guess.
 
-Mix: 15 mains, 5 snacks, 5 desserts. Vary the cuisines (Mexican, Asian, Mediterranean, Indian, American, Italian, Middle Eastern, etc.) and include at least 4 vegan recipes. These ids already exist, so don't reuse them: chipotle-lime-chicken-burrito-bowls, orange-ginger-air-fryer-chicken-broccoli, harissa-lentil-chickpea-power-bowls, turkey-veggie-egg-white-bites, mexican-hot-chocolate-protein-creami.
+Mix: 15 mains, 5 snacks, 5 desserts. Vary the cuisines (Mexican, Asian, Mediterranean, Indian, American, Italian, Middle Eastern, etc.) and include at least 4 vegan recipes. Don't reuse any id that already exists on the site (see js/data/mock-recipes.js and js/data/batch-*.js).
 
 HARD RULES (every recipe, per serving)
 1. Calories by category: "main" 600–1200 kcal, "snack" 100–400 kcal, "dessert" 200–700 kcal.
