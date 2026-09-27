@@ -5,9 +5,9 @@
  */
 (function () {
   const P = window.CookQueue;
-  const { esc, fmtMinutes, fmtNum, fmtQty, fmtAmount, titleCase, imgAttrs } = P.util;
+  const { esc, fmtMinutes, fmtNum, fmtQty, fmtAmount, imgAttrs } = P.util;
   const { calorieColor, rangeFor } = P.nutrition;
-  const { CATEGORIES, APPLIANCES, COOKS, RULES, STORAGE_KEY, MACRO_COLORS } = P.config;
+  const { CATEGORIES, COOKS, RULES, STORAGE_KEY, MACRO_COLORS } = P.config;
   const { scaleIngredients, recommend, isTracked } = P.scaler;
   const { schedule, activeMinutes } = P.scheduler;
   const ui = P.ui;
@@ -149,8 +149,7 @@
           <h1>Your week of meals, <span>no delivery fee.</span></h1>
           <p>Browse high-protein, low-salt, low-fat recipes. Every batch size is tuned so no half-used containers are left in your fridge.</p>
           <div class="promo-actions">
-            <button class="btn btn-primary" data-action="open-generator">✨ Generate a recipe</button>
-            <button class="btn btn-ghost" data-action="scroll-menu">Browse menu</button>
+            <button class="btn btn-primary" data-action="scroll-menu">Browse menu</button>
             ${Cloud.enabled ? '<a class="btn btn-ghost" href="#/add">➕ Add your recipe</a>' : ''}
           </div>
         </div>
@@ -203,7 +202,7 @@
             <div class="empty">
               <span aria-hidden="true">🥡</span>
               <h3>Nothing on the menu matches that</h3>
-              <p>Clear a filter, or have CookQueue generate something new.</p>
+              <p>Try clearing a filter or searching for something else.</p>
               <button class="btn btn-primary" data-action="clear-filters">Clear filters</button>
             </div>`}
         </div>
@@ -787,89 +786,11 @@
     $('#plan-drawer').setAttribute('aria-hidden', 'true');
   }
 
-  /* ---------------------------------------------------------- generator modal */
-
-  function openGenerator() {
-    const root = $('#modal-root');
-    root.innerHTML = `
-      <div class="modal-backdrop" data-action="modal-close"></div>
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="gen-title">
-        <button class="icon-btn modal-x" data-action="modal-close" aria-label="Close">✕</button>
-        <form id="gen-form">
-          <h2 id="gen-title">✨ Generate a recipe</h2>
-          <p class="muted">Every result meets your rules: ${Object.values(RULES.calories).map(c => `${c.label.toLowerCase()}s ${c.min}–${fmtNum(c.max)} kcal`).join(', ')}; ≤ ¼ tsp salt, low fat, ≤ ${RULES.maxIngredients} ingredients, ≤ ${RULES.maxActiveMinutes} min hands-on and approved appliances only.</p>
-          <div class="form-grid">
-            <label>Meal type
-              <select name="mealType"><option value="main">Main meal</option><option value="snack">Snack</option><option value="dessert">Dessert</option><option value="any">Surprise me</option></select>
-            </label>
-            <label>Cuisine
-              <select name="cuisine"><option value="any">Any</option><option value="mexican">Mexican</option><option value="asian">Asian</option><option value="mediterranean">Mediterranean</option></select>
-            </label>
-            <label>Appliance
-              <select name="appliance"><option value="any">Any approved</option>
-                ${Object.entries(APPLIANCES).filter(([, a]) => !a.storage).map(([k, a]) => `<option value="${k}">${esc(a.label)}${a.dessertOnly ? ' (desserts)' : ''}</option>`).join('')}
-              </select>
-            </label>
-            <label>Max hands-on
-              <select name="maxActive"><option value="45">45 min</option><option value="40">40 min</option><option value="35">35 min</option><option value="30">30 min</option></select>
-            </label>
-          </div>
-          <fieldset class="diet">
-            <legend>Dietary</legend>
-            ${['vegan', 'vegetarian', 'gluten free', 'dairy free'].map(d => `<label class="check"><input type="checkbox" name="diet" value="${d}"><span>${titleCase(d)}</span></label>`).join('')}
-          </fieldset>
-          <label class="range">Max spice <output id="spice-out">🌶️🌶️🌶️</output>
-            <input type="range" name="maxSpice" min="0" max="5" value="3">
-          </label>
-          <button class="btn btn-primary btn-block" type="submit">Generate recipe</button>
-        </form>
-        <div class="gen-loading" hidden>
-          <div class="pan" aria-hidden="true">🍳</div>
-          <p id="gen-msg">Balancing macros…</p>
-        </div>
-      </div>`;
-    document.body.classList.add('modal-open');
-    const form = $('#gen-form');
-    form.maxSpice.addEventListener('input', e => {
-      $('#spice-out').textContent = +e.target.value ? '🌶️'.repeat(+e.target.value) : 'Mild';
-    });
-    form.addEventListener('submit', onGenerate);
-    form.mealType.focus();
-  }
+  /* ---------------------------------------------------------- modal */
 
   function closeModal() {
     $('#modal-root').innerHTML = '';
     document.body.classList.remove('modal-open');
-  }
-
-  async function onGenerate(e) {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const prefs = {
-      mealType: fd.get('mealType'), cuisine: fd.get('cuisine'), appliance: fd.get('appliance'),
-      maxActive: +fd.get('maxActive'), maxSpice: +fd.get('maxSpice'), diet: fd.getAll('diet'),
-    };
-    e.target.hidden = true;
-    const loading = $('.gen-loading');
-    loading.hidden = false;
-    const msgs = ['Balancing macros…', 'Finding the zero-waste batch…', 'Scheduling parallel steps…'];
-    let i = 0;
-    const tick = setInterval(() => { $('#gen-msg').textContent = msgs[++i % msgs.length]; }, 420);
-    try {
-      const { recipe, exact } = await Service.generate(prefs);
-      const check = Service.validate(recipe);
-      if (!check.ok) throw new Error(check.errors.join('; '));
-      if (!byId(recipe.id)) state.recipes.push(recipe);
-      closeModal();
-      location.hash = `#/recipe/${recipe.id}`;
-      toast(exact ? `✨ Generated <b>${esc(recipe.name)}</b>` : `Closest match on the menu: <b>${esc(recipe.name)}</b>`);
-    } catch (err) {
-      console.error(err);
-      closeModal();
-      toast('⚠ Could not generate a recipe. Please try again.');
-    } finally {
-      clearInterval(tick);
-    }
   }
 
   /* ---------------------------------------------------------- events */
@@ -885,7 +806,6 @@
     'category':       el => { state.filters.category = el.dataset.id; renderHome(); },
     'quick':          el => { const s = state.filters.quick; s.has(el.dataset.id) ? s.delete(el.dataset.id) : s.add(el.dataset.id); renderHome(); },
     'clear-filters':  () => { state.filters = { category: 'all', quick: new Set(), search: '', sort: state.filters.sort }; $('#search').value = ''; renderHome(); },
-    'open-generator': openGenerator,
     'scroll-menu':    () => $('#recipes').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth' }),
     'modal-close':    closeModal,
     'servings-dec':   () => setServings(viewState(state.current).servings - 1),

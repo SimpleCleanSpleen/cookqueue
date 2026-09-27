@@ -6,9 +6,9 @@
  * JSON comes back through the exact same RecipeEditor.normalize() +
  * RecipeService.validate() + RecipeService.save() pipeline used everywhere
  * else. Two tabs on the "Add a recipe" page:
- *   - Single: a few quick questions + prompt, sitting above the editor's
+ *   - Single: a Copy AI Prompt button (the AI interviews the person), sitting above the editor's
  *     existing "Have it as JSON?" box.
- *   - Batch: paste a JSON array; recipes that pass validation are published
+ *   - Batch: the same for several recipes, then paste back a JSON array; recipes that pass validation are published
  *     immediately, recipes that fail land in a review queue (copy-a-fix-
  *     prompt, or edit manually in the normal editor).
  */
@@ -16,7 +16,6 @@ window.CookQueue = window.CookQueue || {};
 
 CookQueue.RecipeHelper = (function () {
   const { esc, copyText } = CookQueue.util;
-  const { APPLIANCES } = CookQueue.config;
   const PB = CookQueue.PromptBuilder;
   const Editor = CookQueue.RecipeEditor;
   const Service = CookQueue.RecipeService;
@@ -55,20 +54,17 @@ CookQueue.RecipeHelper = (function () {
 
   /* ---------------------------------------------------------- single-recipe helper panel */
 
+  const STEPS_HTML = `<ol class="helper-steps">
+      <li>Tap <b>Copy AI Prompt</b>, open a free AI chat (links below) and paste it in.</li>
+      <li>Answer its questions one at a time. Use any units you like — metric or imperial — and ask it to switch any time.</li>
+      <li>When it gives you the final JSON, copy it and paste it back here.</li>
+    </ol>`;
+
   function singleHelperHTML() {
-    const appliances = Object.entries(APPLIANCES).filter(([, a]) => !a.storage);
     return `
       <details class="panel ed-helper" open>
-        <summary>✨ Not sure where to start? Answer 3 quick questions</summary>
-        <p class="muted small">This builds a prompt for a free AI chat that already knows CookQueue's rules. Paste its reply into "Have it as JSON?" below.</p>
-        <label class="field"><span class="field-label">Dish name or idea</span>
-          <input type="text" data-helper="dish" placeholder="e.g. lemony chicken orzo soup"></label>
-        <label class="field"><span class="field-label">Ingredients you already have (optional)</span>
-          <input type="text" data-helper="have" placeholder="e.g. chicken thighs, orzo, spinach"></label>
-        <fieldset class="tag-picks">
-          <legend class="field-label">Appliances available (optional)</legend>
-          ${appliances.map(([k, a]) => `<label class="check check--sm"><input type="checkbox" data-helper-app="${k}"><span>${esc(a.short)}</span></label>`).join('')}
-        </fieldset>
+        <summary>✨ Let an AI chat walk you through it</summary>
+        ${STEPS_HTML}
         <div class="helper-actions">
           <button type="button" class="btn btn-primary btn-small" data-helper="copy-single">📋 Copy AI Prompt</button>
           ${chatLinksHTML()}
@@ -84,11 +80,7 @@ CookQueue.RecipeHelper = (function () {
     importPanel.insertAdjacentHTML('beforebegin', singleHelperHTML());
     const panel = importPanel.previousElementSibling;
     panel.querySelector('[data-helper="copy-single"]').addEventListener('click', async e => {
-      const dishName = panel.querySelector('[data-helper="dish"]').value.trim();
-      const ingredientsOnHand = panel.querySelector('[data-helper="have"]').value.trim();
-      const appliances = [...panel.querySelectorAll('[data-helper-app]:checked')].map(el => APPLIANCES[el.dataset.helperApp].short);
-      const prompt = PB.buildSingleRecipePrompt({ dishName, ingredientsOnHand, appliances });
-      await copyOrFallback(prompt, e.currentTarget, 'helper-fallback-single', panel);
+      await copyOrFallback(PB.buildSingleRecipePrompt(), e.currentTarget, 'helper-fallback-single', panel);
       importPanel.open = true;
     });
   }
@@ -138,9 +130,8 @@ CookQueue.RecipeHelper = (function () {
     return `
       <div class="batch-helper">
         <div class="panel">
-          <h2>📋 Describe several recipes</h2>
-          <p class="muted small">Ramble about a few recipes — cuisines, proteins, whatever you've got. The AI will ask follow-up questions until it has enough to satisfy the site's rules for each one.</p>
-          <textarea id="batch-ramble" rows="6" placeholder="e.g. I want a Thai peanut chicken bowl, a vegan chili, and something with salmon…"></textarea>
+          <h2>📋 Add several recipes with an AI chat</h2>
+          ${STEPS_HTML.replace('the final JSON', 'the final JSON list')}
           <div class="helper-actions">
             <button type="button" class="btn btn-primary btn-small" data-batch="copy-prompt">📋 Copy AI Prompt</button>
             ${chatLinksHTML()}
@@ -242,7 +233,7 @@ CookQueue.RecipeHelper = (function () {
 
     root.addEventListener('click', async e => {
       if (e.target.matches('[data-batch="copy-prompt"]')) {
-        const prompt = PB.buildBatchPrompt({ ramble: $('#batch-ramble').value.trim() });
+        const prompt = PB.buildBatchPrompt();
         await copyOrFallback(prompt, e.target, 'helper-fallback-batch', root);
         return;
       }

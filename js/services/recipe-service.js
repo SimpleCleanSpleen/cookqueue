@@ -11,7 +11,7 @@ window.CookQueue = window.CookQueue || {};
 
 CookQueue.RecipeService = (function () {
   const { RULES, APPLIANCES } = CookQueue.config;
-  const { clone, delay, fmtNum } = CookQueue.util;
+  const { clone, fmtNum } = CookQueue.util;
   const { fatPct } = CookQueue.nutrition;
   const { activeMinutes } = CookQueue.scheduler;
 
@@ -185,32 +185,5 @@ CookQueue.RecipeService = (function () {
     await CookQueue.Cloud.deleteRecipe(id);
   }
 
-  /**
-   * MOCK generator: scores the existing recipes against the preferences and
-   * returns the best match after a short "cooking" delay.
-   * Swap this for your LLM / API call; it must resolve to ONE recipe object
-   * in the documented schema. Run `validate()` on the result before showing it.
-   *
-   * @param {{mealType?:string, cuisine?:string, diet?:string[], maxSpice?:number,
-   *          appliance?:string, maxActive?:number}} prefs
-   */
-  async function generate(prefs = {}) {
-    await delay(1200);
-    const pool = allRecipes().filter(r => { try { return validate(r).ok; } catch { return false; } });
-    const scored = pool.map(r => {
-      let score = Math.random() * 0.5; // light shuffle so "Surprise me" varies
-      if (prefs.mealType && prefs.mealType !== 'any') score += r.category === prefs.mealType ? 5 : -10;
-      if (prefs.cuisine && prefs.cuisine !== 'any') score += r.cuisine === prefs.cuisine ? 3 : -1;
-      (prefs.diet || []).forEach(d => { score += r.tags.includes(d) ? 2 : -4; });
-      if (prefs.maxSpice != null) score += r.spiceLevel <= prefs.maxSpice ? 1 : -3;
-      if (prefs.appliance && prefs.appliance !== 'any') score += r.appliances.includes(prefs.appliance) ? 2 : -2;
-      if (prefs.maxActive) score += activeMinutes(r) <= prefs.maxActive ? 1 : -2;
-      return { r, score };
-    }).sort((a, b) => b.score - a.score);
-    const best = clone(scored[0].r);
-    const exact = scored[0].score >= 0;
-    return { recipe: best, exact };
-  }
-
-  return { list, get, save, remove, generate, validate, rejected };
+  return { list, get, save, remove, validate, rejected };
 })();

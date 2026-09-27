@@ -46,7 +46,7 @@ step('signed in as @jeremy_cooks');
 
 await page.goto('http://localhost:8000/?emulator#/add');
 await page.waitForSelector('.editor-form .ed-section');
-const json = await page.evaluate(() => { const r = structuredClone(CookQueue.RECIPE_BATCHES[0].recipes[1]); r.name = 'Jeremy Test Chicken'; r.id = 'x'; return JSON.stringify(r); });
+const json = await page.evaluate(() => { const r = structuredClone(CookQueue.RECIPE_BATCHES[0].recipes[0]); r.name = 'Jeremy Test Chicken'; r.id = 'x'; return JSON.stringify(r); });
 const saveBtn = page.locator('[data-ed="save"]');
 step('save disabled on blank form: ' + await saveBtn.isDisabled());
 await page.click('.ed-import summary');

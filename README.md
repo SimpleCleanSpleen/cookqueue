@@ -1,9 +1,9 @@
-# CookQueue (Meal Prep Generator)
+# CookQueue (Meal Prep)
 
 **▶ Live site: https://cookqueue.fyi/**
 
 ## Core Concept
-A delivery-app-style UI for generating optimized, zero-waste meal prep recipes tailored to strict dietary needs.
+A delivery-app-style UI for browsing optimized, zero-waste meal prep recipes tailored to strict dietary needs.
 
 You browse a "menu," open a recipe the way you'd open a restaurant page, pick your batch size in an order-style panel, and add it to your **Prep Plan** (the cart). CookQueue then gives you a combined shopping list for the week.
 
@@ -12,19 +12,13 @@ You browse a "menu," open a recipe the way you'd open a restaurant page, pick yo
 - **Dynamic Gantt Timeline:** Replaces standard instructions with a parallel workflow timeline adjustable by the number of cooks.
 - **Dynamic Calorie/Macro Badges:** Visual color-shifting UI based on nutritional density.
 
-### Menu (mock data)
-| Recipe | Category | kcal | Protein | Hands-on | Zero-waste batches |
-|---|---|---|---|---|---|
-| Chipotle-Lime Chicken Burrito Bowls | main | 839 | 82 g | 39 min | 8, 16 |
-| Orange-Ginger Air Fryer Chicken & Broccoli | main | 753 | 63 g | 43 min | 8 |
-| Smoky Harissa-Spiced Lentil & Chickpea Bowls (vegan) | main | 674 | 45 g | 33 min | 4, 8, 12 |
-| Turkey & Veggie Egg White Bites | snack | 150 | 28 g | 25 min | 8, 16 |
-| Mexican Hot Chocolate Protein Creami | dessert | 347 | 40 g | 31 min | 8, 16 (2 servings per pint) |
+### Menu
+27 recipes ship with the site, each with a photo: 2 hand-written starters in `js/data/mock-recipes.js` (Orange-Ginger Air Fryer Chicken & Broccoli, Mexican Hot Chocolate Protein Creami) and 25 Gemini-written ones in `js/data/batch-01.js`. Everything else comes from signed-in users.
 
 ### Community recipes (sign in with Google)
 Once Firebase is switched on (see [docs/firebase-setup.md](docs/firebase-setup.md)), anyone can sign in with Google, pick a username and publish their own recipes:
 - **➕ Add your recipe:** a form for every part of a recipe (ingredients, packages, steps and what each step waits on), with an optional photo and a box to paste Gemini JSON. A live **rule check** has to be all green before **Publish** works. Whenever that check fails, a **🤖 Copy Fix Prompt** button copies the errors plus your recipe's JSON so you can hand it to any AI chat for a fix.
-- **Recipe Helper:** two tabs on the Add page for going from an idea to valid JSON without writing it by hand. **One recipe** asks 3 quick questions and builds a copy-paste prompt for a free AI chat (ChatGPT, Gemini, Claude — CookQueue never calls one itself). **Several at once** takes a messy ramble about a few recipes, builds a prompt asking the AI to interview you until it has enough, then lets you paste back a JSON array: recipes that pass publish immediately, recipes that fail land in a review queue you can fix with another AI round-trip or by editing manually.
+- **Recipe Helper:** two tabs on the Add page for going from an idea to valid JSON without writing it by hand. Each has a **📋 Copy AI Prompt** button (plus ChatGPT, Gemini and Claude links). The prompt makes your own free AI chat interview you one question at a time, convert units as you go (metric or imperial, and it switches when you ask), check every CookQueue rule, then hand back JSON to paste in. **One recipe** pastes into "Have it as JSON?"; **Several at once** takes a JSON list: recipes that pass publish immediately, recipes that fail land in a review queue you can fix with another AI round-trip or by editing manually. CookQueue itself never calls an AI.
 - **Shared by @username** on each community recipe. Only the owner sees ✏️ Edit and 🗑 Delete, and the Firestore security rules enforce that on the server as well.
 - **My recipes** (account menu, top right) lists everything you've shared, including any that are hidden because they break a rule.
 - A **Community** category on the home page. Community recipes show "New" until real ratings arrive.
@@ -36,9 +30,8 @@ Until Firebase is configured, none of this appears and the site works exactly as
 ### Also included
 - **Rule validator:** Every recipe is checked against the dietary, appliance and effort rules. The recipe page shows "✓ Meets all CookQueue rules" with the full checklist.
 - **Prep Plan (cart):** Add several recipes and get one combined shopping list, with packages summed across recipes and open containers flagged. It's saved in `localStorage`.
-- **Generator modal:** A "✨ Generate a recipe" form (meal type, cuisine, diet, spice, appliance, max hands-on time). It currently picks the best mock match. This is where AI generation plugs in.
 - **Store-front browsing:** Category rail, quick filters, sort and search (by name, tag or ingredient).
-- **Responsive:** Works from phones to desktop. On narrow screens the time and nutrition badges move above the images but stay in opposite corners.
+- **Responsive:** Works from phones to desktop with no sideways scrolling. On narrow screens the time and nutrition badges move above the images, and the quick filters wrap onto extra rows.
 
 ---
 
@@ -81,7 +74,7 @@ tests/                        Dev-only Node tests: security rules + end-to-end, 
   lib/barcode.js              UPC/EAN normalizing + camera/photo scanning (native BarcodeDetector or zxing-wasm)
   services/cloud-service.js   Firebase Auth + Firestore (sign-in, usernames, community recipe CRUD, barcode catalog)
   services/product-service.js Barcode → product lookup (CookQueue catalog, then Open Food Facts)
-  services/recipe-service.js  Data access layer: list(), get(), save(), remove(), generate(), validate()
+  services/recipe-service.js  Data access layer: list(), get(), save(), remove(), validate()
   ui/components.js            Presentational HTML builders (cards, badges, chips)
   ui/timeline.js              Gantt renderer + step list
   ui/barcode-picker.js        "Add a barcode" dialog (camera, photo, or typed digits)
@@ -94,7 +87,7 @@ Scripts are plain, ordered `<script>` tags that share a `window.CookQueue` names
 ### Data flow
 
 ```
-RecipeService.list()/get()/generate()   ← the ONLY place that knows where recipes come from
+RecipeService.list()/get()              ← the ONLY place that knows where recipes come from
           │
           ▼
 app.js state ──► scaler.recommend()      → Your batch panel + ingredient package meters
@@ -221,23 +214,9 @@ Recipes are **pure JSON**: no functions and no computed fields. A generator only
 
 ---
 
-## Plugging in live (on-demand) recipe generation
+## No in-app AI
 
-> Optional. The cheapest plan (see **Hosting & cost plan**) generates recipes ahead of time, so GitHub Pages never needs a server. Live generation needs a small backend to hold the API key, such as a Cloudflare Worker (free tier) or a Firebase Cloud Function (needs the pay-as-you-go Blaze plan, but its free quota covers hobby use).
-
-1. Edit **only** `js/services/recipe-service.js`:
-   ```js
-   async function generate(prefs) {
-     const res = await fetch('/api/generate', { method: 'POST', body: JSON.stringify(prefs) });
-     const recipe = await res.json();
-     return { recipe, exact: true };
-   }
-   ```
-2. Have your backend (e.g. an LLM prompt) return the schema above. Include the rules table in the prompt, and consider using JSON-schema / structured output.
-3. The app already runs `RecipeService.validate()` on generated recipes and refuses to show one that fails.
-4. Keep API keys **on the server**. Never call a model provider directly from this front end.
-
-`list()` and `get()` can move to an API or database the same way.
+CookQueue never calls an AI model itself (no API keys, no server, no cost). New recipes come from people, optionally with help from their own free AI chat via **Recipe Helper**'s copy-paste prompts (`js/lib/prompt-builder.js`), and always pass `RecipeService.validate()` before they're saved.
 
 ---
 
